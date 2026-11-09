@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Our Space
 
-## Getting Started
+Our Space is a private, warm, and modern accountability website for Fernan and Alpha. It is designed as a shared digital home for faith, growth, business, wedding planning, financial stewardship, and future life planning.
 
-First, run the development server:
+## Tech stack
+
+- Next.js 16 with App Router
+- TypeScript
+- Tailwind CSS
+- React Hook Form + Zod
+- Supabase Auth + Postgres + Storage
+- Recharts
+- Lucide React
+
+## Included experience
+
+The app includes a responsive shell with desktop sidebar and mobile navigation, protected login flow, and the following modules:
+
+- Dashboard
+- Our Devotion
+- UpSkill Progress
+- Business Dump Ideas/Progress
+- Faith Goals (5F's)
+- Wedding Planning
+- Marriage Plans
+- Wedding Budget Piggy Bank
+- Settings
+
+This project is structured as a front-end prototype with Supabase-ready configuration and typed data models for a production handoff.
+
+Dashboard, Our Devotion, UpSkill Progress, Business Dump Ideas/Progress, Faith Goals, and Settings are permanent pages. UpSkill Progress uses learning tracks with checklists and automatically calculated progress; Business Dump Ideas/Progress uses descriptions and manually adjustable progress. In Settings, Wedding Planning, Marriage Plans, and Wedding Budget can be renamed, have their descriptions edited, or be removed from navigation. You can also create custom pages with a title and description, then add topics with checklists, mark tasks complete, and track progress. Topic and task cards are color-coded by author. Page configuration and custom-page content are stored in this browser's local storage.
+
+## Local development
+
+1. Copy `.env.example` to `.env.local`.
+2. Create a Supabase project and set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from its API settings.
+3. In Supabase Authentication, invite only Fernan (`amberbambico.54@gmail.com`) and Alpha (`alpha.v.sugano@gmail.com`). Public sign-up is not enabled in the app.
+4. Install dependencies:
+
+```bash
+npm install
+```
+
+5. Run the app:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+6. Open http://localhost:3000 and sign in with the invited account credentials.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The app maps the authenticated email to Fernan or Alpha automatically and uses a different card color for each author's topics. Authentication requires a configured Supabase project; no `.env.local` file or project credentials are currently present in this workspace.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Until Supabase is configured, the login page offers temporary Fernan and Alpha demo profiles. These only set a browser-local identity for previewing author colors and attribution; they do not authenticate or protect private information. Demo content remains in browser `localStorage`.
 
-## Learn More
+Current module content is still stored in browser `localStorage`, so it is not synchronized between separate devices/browsers. Do not put a Supabase service-role key in client-side environment variables.
 
-To learn more about Next.js, take a look at the following resources:
+## Production deployment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+This app is designed for Vercel deployment with environment variables configured in the project settings.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Security requirements
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Keep secrets out of the repository.
+- Use Supabase Auth for user sessions.
+- Protect routes and database access using Row Level Security.
+- Keep the shared workspace restricted to Fernan and Alpha only.
