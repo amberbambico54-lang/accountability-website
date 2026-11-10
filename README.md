@@ -9,7 +9,7 @@ Our Space is a private, warm, and modern accountability website for Fernan and A
 - Tailwind CSS
 - React Hook Form + Zod
 - Browser local storage
-- Optional Supabase Auth
+- Supabase Auth with SSR-compatible session cookies
 - Recharts
 - Lucide React
 
@@ -34,7 +34,7 @@ Dashboard, Our Devotion, UpSkill Progress, Business Dump Ideas/Progress, Faith G
 ## Local development
 
 1. Copy `.env.example` to `.env.local`.
-2. Create a Supabase project and set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from its API settings.
+2. Create a Supabase project and set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` from its API settings.
 3. In Supabase Authentication, invite only Fernan (`amberbambico.54@gmail.com`) and Alpha (`alpha.v.sugano@gmail.com`). Public sign-up is not enabled in the app.
 4. Install dependencies:
 
@@ -50,7 +50,7 @@ npm run dev
 
 6. Open http://localhost:3000 and sign in with the invited account credentials.
 
-The app maps the authenticated email to Fernan or Alpha automatically and uses a different card color for each author's topics. Authentication requires a configured Supabase project; no `.env.local` file or project credentials are currently present in this workspace.
+The app maps the authenticated email to Fernan or Alpha automatically and uses a different card color for each author's topics. Authentication requires a configured Supabase project. Keep `.env.local` out of version control; it is ignored by Git.
 
 Until Supabase is configured, the login page offers temporary Fernan and Alpha demo profiles. These only set a browser-local identity for previewing author colors and attribution; they do not authenticate or protect private information. Demo content remains in browser `localStorage`. Reflections marked private are hidden from the other profile in the interface, but are not access-controlled.
 

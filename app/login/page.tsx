@@ -37,11 +37,18 @@ export default function LoginPage() {
 
     setSubmitting(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
-      if (error) {
-        setErrorMessage(error.message);
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+      if (signInError) {
+        setErrorMessage(signInError.message);
         return;
       }
+
+      const { data: { user: verifiedUser }, error: verificationError } = await supabase.auth.getUser();
+      if (verificationError || !verifiedUser) {
+        setErrorMessage(verificationError?.message ?? "Supabase did not return a verified signed-in user.");
+        return;
+      }
+
       router.replace("/");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Unable to sign in. Please try again.");

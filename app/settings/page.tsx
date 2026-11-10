@@ -2,17 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, ShieldCheck, SlidersHorizontal, Trash2 } from "lucide-react";
+import { KeyRound, Pencil, ShieldCheck, SlidersHorizontal, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddItemDialog } from "@/components/ui/add-item-dialog";
+import { useAuth } from "@/components/auth-provider";
 import { defaultSettings } from "@/lib/content";
+import { hasSupabaseConfig, supabase } from "@/lib/supabase";
 import { useWorkspacePages, type WorkspacePage } from "@/components/workspace-pages-provider";
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const { pages, addPage, updatePage, deletePage } = useWorkspacePages();
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
@@ -21,6 +24,61 @@ export default function SettingsPage() {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  const handleChangePassword = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setPasswordError("");
+    setPasswordSuccess("");
+
+    if (!hasSupabaseConfig || !supabase || !user) {
+      setPasswordError("Password changes require an authenticated Supabase account.");
+      return;
+    }
+
+    if (newPassword.length < 12) {
+      setPasswordError("Choose a password with at least 12 characters.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("The new password and confirmation do not match.");
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const { data: { user: verifiedUser }, error: verificationError } = await supabase.auth.getUser();
+      if (verificationError) throw verificationError;
+      if (!verifiedUser?.email || verifiedUser.email.toLowerCase() !== user.email.toLowerCase()) {
+        throw new Error("Your signed-in Supabase account could not be verified.");
+      }
+
+      const { error: reauthenticationError } = await supabase.auth.signInWithPassword({
+        email: verifiedUser.email,
+        password: currentPassword,
+      });
+      if (reauthenticationError) throw reauthenticationError;
+
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateError) throw updateError;
+
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordSuccess("Your password has been changed.");
+    } catch (error) {
+      setPasswordError(error instanceof Error ? error.message : "Unable to change your password. Please try again.");
+    } finally {
+      setCurrentPassword("");
+      setChangingPassword(false);
+    }
+  };
 
   const handleAddPage = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -92,6 +150,61 @@ export default function SettingsPage() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><KeyRound className="h-4 w-4" /> Change password</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {hasSupabaseConfig ? (
+              <form onSubmit={handleChangePassword} className="space-y-3">
+                <p className="text-sm text-[#4E5A52]">Confirm your current password before choosing a new one. Use a unique password with at least 12 characters.</p>
+                {passwordError && <p role="alert" className="rounded-2xl border border-[#D9A6A6] bg-[#FBEEEE] p-3 text-sm text-[#8B3F3F]">{passwordError}</p>}
+                {passwordSuccess && <p role="status" className="rounded-2xl border border-[#9AB7A1] bg-[#E4EFE7] p-3 text-sm text-[#315940]">{passwordSuccess}</p>}
+                <label className="block space-y-1 text-sm font-medium text-[#313B32]">
+                  Current password
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(event) => setCurrentPassword(event.target.value)}
+                    autoComplete="current-password"
+                    required
+                    className="w-full rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] px-3 py-2 font-normal outline-none focus:border-[#71866E]"
+                  />
+                </label>
+                <label className="block space-y-1 text-sm font-medium text-[#313B32]">
+                  New password
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    autoComplete="new-password"
+                    minLength={12}
+                    required
+                    className="w-full rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] px-3 py-2 font-normal outline-none focus:border-[#71866E]"
+                  />
+                </label>
+                <label className="block space-y-1 text-sm font-medium text-[#313B32]">
+                  Confirm new password
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    autoComplete="new-password"
+                    minLength={12}
+                    required
+                    className="w-full rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] px-3 py-2 font-normal outline-none focus:border-[#71866E]"
+                  />
+                </label>
+                <Button type="submit" disabled={changingPassword}>
+                  {changingPassword ? "Changing password…" : "Change password"}
+                </Button>
+              </form>
+            ) : (
+              <p className="text-sm text-[#4E5A52]">Password changes are unavailable in temporary demo mode. Sign in with a Supabase account to change your password.</p>
+            )}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Privacy controls</CardTitle>
