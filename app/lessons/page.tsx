@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { BookOpenCheck, CheckCircle2, Clock3, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { lessonTracks } from "@/lib/content";
 import { useAuth } from "@/components/auth-provider";
 import { getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
+import { useLocalStorageJson } from "@/lib/use-local-storage-json";
 
 const storageKey = "our-space-lesson-tracks";
 
@@ -55,7 +56,7 @@ const initialLessonTracks: LessonTrack[] = lessonTracks.map((track, index) => {
 });
 
 function normalizeTracks(value: unknown): LessonTrack[] {
-  if (!Array.isArray(value)) return initialLessonTracks;
+  if (!Array.isArray(value)) throw new Error("Saved lesson data must be a list.");
 
   return value.flatMap((item, index) => {
     if (typeof item !== "object" || item === null) return [];
@@ -106,38 +107,14 @@ function normalizeTracks(value: unknown): LessonTrack[] {
   });
 }
 
-function loadTracks(): LessonTrack[] {
-  const saved = window.localStorage.getItem(storageKey);
-  if (!saved) return initialLessonTracks;
-  try {
-    return normalizeTracks(JSON.parse(saved));
-  } catch {
-    return initialLessonTracks;
-  }
-}
-
 export default function LessonsPage() {
   const { user } = useAuth();
-  const [tracks, setTracks] = useState<LessonTrack[]>(initialLessonTracks);
-  const [storageLoaded, setStorageLoaded] = useState(false);
+  const [tracks, setTracks] = useLocalStorageJson(storageKey, initialLessonTracks, normalizeTracks);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [taskDrafts, setTaskDrafts] = useState<Record<string, string>>({});
   const [addTrackOpen, setAddTrackOpen] = useState(false);
   const [addStepTrackId, setAddStepTrackId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setTracks(loadTracks());
-      setStorageLoaded(true);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    if (!storageLoaded) return;
-    window.localStorage.setItem(storageKey, JSON.stringify(tracks));
-  }, [storageLoaded, tracks]);
 
   const handleAddTrack = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

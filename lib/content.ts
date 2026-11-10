@@ -344,8 +344,8 @@ export const budgetTransactions = [
 ];
 
 export const defaultSettings = [
-  "Two-user workspace access",
-  "Private devotions remain private by default",
-  "Shared milestones are visible to both identities",
-  "Encrypted upload bucket enabled",
+  "Temporary demo sign-in is not secure authentication.",
+  "Data is stored in this browser and does not sync across devices.",
+  "Private reflections are hidden in the interface, not access-controlled.",
+  "Image uploads stay in browser storage; no encrypted cloud bucket is configured.",
 ];

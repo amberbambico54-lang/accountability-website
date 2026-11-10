@@ -8,7 +8,8 @@ Our Space is a private, warm, and modern accountability website for Fernan and A
 - TypeScript
 - Tailwind CSS
 - React Hook Form + Zod
-- Supabase Auth + Postgres + Storage
+- Browser local storage
+- Optional Supabase Auth
 - Recharts
 - Lucide React
 
@@ -26,9 +27,9 @@ The app includes a responsive shell with desktop sidebar and mobile navigation, 
 - Wedding Budget Piggy Bank
 - Settings
 
-This project is structured as a front-end prototype with Supabase-ready configuration and typed data models for a production handoff.
+This project is a front-end prototype. Supabase authentication can be configured, but no database schema, row-level policies, or cloud storage bucket is included.
 
-Dashboard, Our Devotion, UpSkill Progress, Business Dump Ideas/Progress, Faith Goals, and Settings are permanent pages. UpSkill Progress uses learning tracks with checklists and automatically calculated progress; Business Dump Ideas/Progress uses descriptions and manually adjustable progress. In Settings, Wedding Planning, Marriage Plans, and Wedding Budget can be renamed, have their descriptions edited, or be removed from navigation. You can also create custom pages with a title and description, then add topics with checklists, mark tasks complete, and track progress. Topic and task cards are color-coded by author. Page configuration and custom-page content are stored in this browser's local storage.
+Dashboard, Our Devotion, UpSkill Progress, Business Dump Ideas/Progress, Faith Goals, and Settings are permanent pages. UpSkill Progress uses learning tracks with checklists and automatically calculated progress; Business Dump Ideas/Progress uses descriptions and manually adjustable progress. In Settings, Wedding Planning, Marriage Plans, and Wedding Budget can be renamed, have their descriptions edited, or be removed from navigation. You can also create custom pages with a title and description, then add topics with checklists, mark tasks complete, and track progress. Topic and task cards are color-coded by author. Page configuration and module content are stored in this browser's local storage. Wedding images are resized and stored as browser data URLs. Changes are available only in the same browser profile and are not backed up or synchronized across devices.
 
 ## Local development
 
@@ -51,9 +52,9 @@ npm run dev
 
 The app maps the authenticated email to Fernan or Alpha automatically and uses a different card color for each author's topics. Authentication requires a configured Supabase project; no `.env.local` file or project credentials are currently present in this workspace.
 
-Until Supabase is configured, the login page offers temporary Fernan and Alpha demo profiles. These only set a browser-local identity for previewing author colors and attribution; they do not authenticate or protect private information. Demo content remains in browser `localStorage`.
+Until Supabase is configured, the login page offers temporary Fernan and Alpha demo profiles. These only set a browser-local identity for previewing author colors and attribution; they do not authenticate or protect private information. Demo content remains in browser `localStorage`. Reflections marked private are hidden from the other profile in the interface, but are not access-controlled.
 
-Current module content is still stored in browser `localStorage`, so it is not synchronized between separate devices/browsers. Do not put a Supabase service-role key in client-side environment variables.
+Current module content is stored in browser `localStorage`, so it is not synchronized between separate devices/browsers. Do not store sensitive information in demo mode, and do not put a Supabase service-role key in client-side environment variables.
 
 ## Production deployment
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext } from "react";
+import { useLocalStorageJson } from "@/lib/use-local-storage-json";
 
 export type WorkspacePage = {
   id: string;
@@ -79,22 +80,14 @@ function createSlug(title: string, pages: WorkspacePage[]) {
   return slug;
 }
 
+function parsePages(value: unknown): WorkspacePage[] {
+  const pages = normalizePages(value);
+  if (!pages) throw new Error("Saved page data must be a list.");
+  return pages;
+}
+
 export function WorkspacePagesProvider({ children }: Readonly<{ children: React.ReactNode }>) {
-  const [pages, setPages] = useState<WorkspacePage[]>(() => {
-    if (typeof window === "undefined") return defaultPages;
-    const saved = window.localStorage.getItem(storageKey);
-    if (!saved) return defaultPages;
-
-    try {
-      return normalizePages(JSON.parse(saved)) ?? defaultPages;
-    } catch {
-      return defaultPages;
-    }
-  });
-
-  useEffect(() => {
-    window.localStorage.setItem(storageKey, JSON.stringify(pages));
-  }, [pages]);
+  const [pages, setPages] = useLocalStorageJson(storageKey, defaultPages, parsePages);
 
   const addPage = (title: string, description: string) => {
     const trimmedTitle = title.trim();

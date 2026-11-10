@@ -110,9 +110,9 @@ export default function SettingsPage() {
             <CardTitle className="flex items-center gap-2"><SlidersHorizontal className="h-4 w-4" /> Workspace preferences</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] p-3 text-sm text-[#4E5A52]">Private reflections default to personal visibility.</div>
-            <div className="rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] p-3 text-sm text-[#4E5A52]">Notifications focus on important milestones and shared decisions.</div>
-            <div className="rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] p-3 text-sm text-[#4E5A52]">Shared workspace is reserved for Fernan and Alpha only.</div>
+            <div className="rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] p-3 text-sm text-[#4E5A52]">Choose shared or private visibility for each reflection; private entries are only hidden in this interface.</div>
+            <div className="rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] p-3 text-sm text-[#4E5A52]">Notifications and milestone reminders are not enabled in this prototype.</div>
+            <div className="rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] p-3 text-sm text-[#4E5A52]">Demo profiles use the same local browser storage and are not suitable for sensitive data.</div>
           </CardContent>
         </Card>
       </section>

@@ -1,20 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { BookOpenText, ShieldCheck, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { BookOpenText, Pencil, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddItemDialog } from "@/components/ui/add-item-dialog";
-import { Progress } from "@/components/ui/progress";
 import { devotionEntries } from "@/lib/content";
 import { useAuth } from "@/components/auth-provider";
 import { getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
+import { useLocalStorageJson } from "@/lib/use-local-storage-json";
 
 const storageKey = "our-space-devotion-entries";
 
 type DevotionEntry = {
+  id: string;
   title: string;
   verse: string;
   owner: string;
@@ -23,33 +24,47 @@ type DevotionEntry = {
   reflection: string;
 };
 
+const initialEntries: DevotionEntry[] = devotionEntries.map((entry, index) => ({ ...entry, id: `devotion-entry-${index}` }));
+
+function parseEntries(value: unknown): DevotionEntry[] {
+  if (!Array.isArray(value)) throw new Error("Saved devotion data must be a list.");
+  return value.flatMap((item, index) => {
+    if (typeof item !== "object" || item === null) return [];
+    const entry = item as Partial<DevotionEntry>;
+    if (typeof entry.title !== "string" || typeof entry.reflection !== "string") return [];
+    return [{
+      id: typeof entry.id === "string" ? entry.id : `devotion-entry-${index}`,
+      title: entry.title,
+      verse: typeof entry.verse === "string" ? entry.verse : "",
+      owner: typeof entry.owner === "string" ? entry.owner : "Shared",
+      visibility: entry.visibility === "Private" ? "Private" : "Shared",
+      summary: typeof entry.summary === "string" ? entry.summary : "",
+      reflection: entry.reflection,
+    }];
+  });
+}
+
 export default function DevotionPage() {
   const { user } = useAuth();
-  const [entries, setEntries] = useState<DevotionEntry[]>(() => {
-    if (typeof window === "undefined") return devotionEntries;
-    const stored = window.localStorage.getItem(storageKey);
-    if (!stored) return devotionEntries;
-    try {
-      return JSON.parse(stored);
-    } catch {
-      return devotionEntries;
-    }
-  });
+  const [entries, setEntries] = useLocalStorageJson(storageKey, initialEntries, parseEntries);
   const [title, setTitle] = useState("");
   const [verse, setVerse] = useState("Psalm 119:105");
   const [summary, setSummary] = useState("");
   const [reflection, setReflection] = useState("");
   const [visibility, setVisibility] = useState<"Shared" | "Private">("Shared");
   const [addReflectionOpen, setAddReflectionOpen] = useState(false);
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [entryEdit, setEntryEdit] = useState<DevotionEntry | null>(null);
+  const visibleEntries = entries.filter((entry) => entry.visibility !== "Private" || entry.owner === user?.name);
+  const sharedEntryCount = visibleEntries.filter((entry) => entry.visibility !== "Private").length;
+  const privateEntryCount = visibleEntries.filter((entry) => entry.visibility === "Private").length;
 
-  useEffect(() => {
-    window.localStorage.setItem(storageKey, JSON.stringify(entries));
-  }, [entries]);
-
-  const handleAddEntry = () => {
+  const handleAddEntry = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (!title.trim() || !reflection.trim()) return;
     if (!user) return;
     const newEntry = {
+      id: `devotion-entry-${Date.now()}`,
       title: title.trim(),
       verse: verse.trim() || "Psalm 119:105",
       owner: user.name,
@@ -64,6 +79,13 @@ export default function DevotionPage() {
     setReflection("");
     setVisibility("Shared");
     setAddReflectionOpen(false);
+  };
+
+  const handleSaveEntry = () => {
+    if (!entryEdit?.title.trim() || !entryEdit.reflection.trim()) return;
+    setEntries((current) => current.map((entry) => entry.id === entryEdit.id ? entryEdit : entry));
+    setEditingEntryId(null);
+    setEntryEdit(null);
   };
 
   return (
@@ -85,7 +107,7 @@ export default function DevotionPage() {
           description="Record a verse, a short summary, and your reflection or prayer."
           triggerLabel="New reflection"
         >
-          <div className="space-y-3">
+          <form className="space-y-3" onSubmit={handleAddEntry}>
             <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Title" aria-label="Reflection title" required className="w-full rounded-2xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm text-[#313B32] outline-none focus:border-[#71866E]" />
             <input value={verse} onChange={(event) => setVerse(event.target.value)} placeholder="Bible verse or reference" aria-label="Bible verse or reference" className="w-full rounded-2xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm text-[#313B32] outline-none focus:border-[#71866E]" />
             <input value={summary} onChange={(event) => setSummary(event.target.value)} placeholder="Short summary" aria-label="Short summary" className="w-full rounded-2xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm text-[#313B32] outline-none focus:border-[#71866E]" />
@@ -98,10 +120,10 @@ export default function DevotionPage() {
               </select>
               <div className="flex gap-2">
                 <Button type="button" variant="ghost" onClick={() => setAddReflectionOpen(false)}>Cancel</Button>
-                <Button type="button" onClick={handleAddEntry}>Save reflection</Button>
+                <Button type="submit">Save reflection</Button>
               </div>
             </div>
-          </div>
+          </form>
         </AddItemDialog>
       </section>
 
@@ -134,24 +156,50 @@ export default function DevotionPage() {
 
       <section className="grid gap-4 lg:grid-cols-[1.3fr_0.7fr]">
         <div className="space-y-4">
-          {entries.map((entry: DevotionEntry) => (
-            <Card key={`${entry.title}-${entry.verse}`} className={getAuthorCardClass(entry.owner)}>
+          {visibleEntries.length === 0 && <Card><CardContent className="py-6 text-sm text-[#4E5A52]">No reflections are visible yet. Add one to begin.</CardContent></Card>}
+          {visibleEntries.map((entry) => (
+            <Card key={entry.id} className={getAuthorCardClass(entry.owner)}>
               <CardHeader className="flex flex-row items-center justify-between gap-3 pb-2">
                 <div>
-                  <CardTitle>{entry.title}</CardTitle>
+                  {editingEntryId === entry.id && entryEdit ? (
+                    <input value={entryEdit.title} onChange={(event) => setEntryEdit({ ...entryEdit, title: event.target.value })} aria-label="Edit reflection title" className="w-full rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm" />
+                  ) : <CardTitle>{entry.title}</CardTitle>}
                   <p className="mt-1 text-xs uppercase tracking-[0.12em] text-[#71866E]">{entry.visibility}</p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <Badge>{entry.verse}</Badge>
                   <Badge className={getAuthorBadgeClass(entry.owner)}>{entry.owner}</Badge>
+                  {entry.owner === user?.name && (
+                    <div className="flex">
+                      <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${entry.title}`} onClick={() => {
+                        setEditingEntryId(entry.id);
+                        setEntryEdit({ ...entry });
+                      }}><Pencil className="h-4 w-4" /></Button>
+                      <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${entry.title}`} onClick={() => setEntries((current) => current.filter((item) => item.id !== entry.id))}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-sm leading-6 text-[#4E5A52]">{entry.summary}</p>
+                {editingEntryId === entry.id && entryEdit ? (
+                  <div className="space-y-3">
+                    <input value={entryEdit.verse} onChange={(event) => setEntryEdit({ ...entryEdit, verse: event.target.value })} aria-label="Edit Bible verse" className="w-full rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm" />
+                    <textarea value={entryEdit.summary} onChange={(event) => setEntryEdit({ ...entryEdit, summary: event.target.value })} aria-label="Edit summary" rows={2} className="w-full rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm" />
+                    <textarea value={entryEdit.reflection} onChange={(event) => setEntryEdit({ ...entryEdit, reflection: event.target.value })} aria-label="Edit reflection" rows={4} className="w-full rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm" />
+                    <select value={entryEdit.visibility} onChange={(event) => setEntryEdit({ ...entryEdit, visibility: event.target.value })} aria-label="Edit visibility" className="rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm">
+                      <option value="Shared">Shared</option><option value="Private">Private</option>
+                    </select>
+                    <div className="flex gap-2"><Button type="button" size="sm" onClick={handleSaveEntry}>Save changes</Button><Button type="button" size="sm" variant="ghost" onClick={() => { setEditingEntryId(null); setEntryEdit(null); }}>Cancel</Button></div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm leading-6 text-[#4E5A52]">{entry.summary}</p>
                 <div className="rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] p-3">
                   <p className="text-[11px] uppercase tracking-[0.14em] text-[#71866E]">Reflection</p>
                   <p className="mt-2 text-sm leading-6 text-[#313B32]">{entry.reflection}</p>
                 </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -159,24 +207,15 @@ export default function DevotionPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Private accountability</CardTitle>
+            <CardTitle>Reflection overview</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-5">
-            <div>
-              <div className="mb-2 flex items-center justify-between text-sm text-[#4E5A52]">
-                <span>Consistency</span>
-                <span>82%</span>
-              </div>
-              <Progress value={82} />
-            </div>
+          <CardContent className="space-y-3">
             <div className="rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] p-4">
-              <p className="text-sm font-medium text-[#313B32]">Current commitment</p>
-              <p className="mt-2 text-sm text-[#4E5A52]">Wake early for prayer and avoid heavy distractions before 9am.</p>
+              <p className="text-2xl font-semibold text-[#313B32]">{visibleEntries.length}</p>
+              <p className="mt-1 text-sm text-[#4E5A52]">Reflections visible to you</p>
             </div>
-            <div className="rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] p-4">
-              <p className="text-sm font-medium text-[#313B32]">Encouragement check-in</p>
-              <p className="mt-2 text-sm text-[#4E5A52]">We believe in progress, not pressure. Keep tending the small habits that build strength and peace.</p>
-            </div>
+            <p className="text-sm text-[#4E5A52]">Shared: {sharedEntryCount} · Private to this profile in the interface: {privateEntryCount}</p>
+            <p className="rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] p-4 text-sm text-[#4E5A52]">Privacy reminder: reflections are stored in this browser. The private setting hides entries in the app but does not secure them from someone with browser access.</p>
           </CardContent>
         </Card>
       </section>

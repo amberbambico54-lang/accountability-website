@@ -49,6 +49,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [authActionError, setAuthActionError] = useState("");
+  const [storageError, setStorageError] = useState("");
   const { user, loading, configured, signOut } = useAuth();
   const { pages, getPageForPath } = useWorkspacePages();
   const optionalNavItems = pages.map((page) => ({
@@ -67,6 +68,15 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
       router.replace("/login");
     }
   }, [loading, pathname, router, user]);
+
+  useEffect(() => {
+    const handleStorageError = (event: Event) => {
+      const message = (event as CustomEvent<unknown>).detail;
+      if (typeof message === "string") setStorageError(message);
+    };
+    window.addEventListener("our-space:storage-error", handleStorageError);
+    return () => window.removeEventListener("our-space:storage-error", handleStorageError);
+  }, []);
 
   useEffect(() => {
     const optionalPath = pathname === "/wedding" || pathname === "/marriage" || pathname === "/budget" || pathname.startsWith("/pages/");
@@ -99,7 +109,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
 
   return (
     <div className="min-h-screen bg-[#F7F4ED] text-[#313B32]">
-      <div className="mx-auto flex max-w-[1600px]">
+      <div className="mx-auto flex w-full max-w-[1600px]">
         <aside className="sticky top-0 hidden h-screen max-h-screen w-72 shrink-0 flex-col overflow-hidden border-r border-[#E7E0D2] bg-[#FAF7F2] px-5 py-6 lg:flex">
           <div className="mb-5 flex shrink-0 items-center gap-3 rounded-2xl bg-[#313B32] px-3 py-3 text-[#F7F4ED] shadow-sm">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#A4B49B] text-sm font-bold text-[#313B32]">
@@ -120,14 +130,14 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                   key={item.title}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors",
+                    "flex min-w-0 items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors",
                     active
                       ? "bg-[#E7E0D2] text-[#313B32] shadow-[0_8px_20px_rgba(49,59,50,0.08)]"
                       : "text-[#5C685F] hover:bg-[#F1EADF] hover:text-[#313B32]"
                   )}
                 >
                   <Icon className="h-4 w-4" />
-                  <span>{item.title}</span>
+                  <span className="min-w-0 break-words">{item.title}</span>
                 </Link>
               );
             })}
@@ -148,20 +158,23 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           </div>
         </aside>
 
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <header className="sticky top-0 z-20 border-b border-[#E7E0D2] bg-[#F7F4ED]/90 backdrop-blur-md">
-            <div className="flex items-center justify-between gap-3 px-4 py-3 md:px-6 xl:px-8">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between gap-2 px-3 py-3 sm:px-4 md:px-6 xl:px-8">
+              <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                 <button
                   type="button"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#E7E0D2] bg-white/80 lg:hidden"
+                  aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+                  aria-expanded={menuOpen}
+                  aria-controls="mobile-navigation"
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#E7E0D2] bg-white/80 lg:hidden"
                   onClick={() => setMenuOpen((prev) => !prev)}
                 >
                   {menuOpen ? <X className="h-4 w-4" /> : <Compass className="h-4 w-4" />}
                 </button>
-                <div>
+                <div className="min-w-0">
                   <p className="text-[10px] uppercase tracking-[0.16em] text-[#71866E]">Our shared home</p>
-                  <h1 className="text-lg font-semibold text-[#313B32]">Welcome back, {user.name}</h1>
+                  <h1 className="truncate text-base font-semibold text-[#313B32] sm:text-lg">Welcome back, {user.name}</h1>
                 </div>
               </div>
 
@@ -187,7 +200,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           </header>
 
           {menuOpen && (
-            <div className="border-b border-[#E7E0D2] bg-[#FAF7F2] p-4 lg:hidden">
+            <div id="mobile-navigation" className="max-h-[60vh] overflow-y-auto border-b border-[#E7E0D2] bg-[#FAF7F2] p-4 lg:hidden">
               <div className="grid grid-cols-2 gap-2">
                 {navItems.map((item) => {
                   const Icon = item.icon;
@@ -196,13 +209,13 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                       key={item.title}
                       href={item.href}
                       className={cn(
-                        "flex items-center gap-2 rounded-2xl px-3 py-2 text-sm",
+                        "flex min-w-0 items-center gap-2 rounded-2xl px-3 py-2 text-sm",
                         pathname === item.href ? "bg-[#E7E0D2] text-[#313B32]" : "bg-white/80 text-[#5C685F]"
                       )}
                       onClick={() => setMenuOpen(false)}
                     >
-                      <Icon className="h-4 w-4" />
-                      {item.title}
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="min-w-0 break-words">{item.title}</span>
                     </Link>
                   );
                 })}
@@ -210,8 +223,14 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             </div>
           )}
 
-          <main className="p-4 md:p-6 xl:p-8">
+          <main className="min-w-0 p-3 sm:p-4 md:p-6 xl:p-8">
             {authActionError && <p role="alert" className="mb-4 rounded-2xl border border-[#D9A6A6] bg-[#FBEEEE] p-3 text-sm text-[#8B3F3F]">{authActionError}</p>}
+            {storageError && (
+              <div role="alert" className="mb-4 flex items-start justify-between gap-3 rounded-2xl border border-[#D9A6A6] bg-[#FBEEEE] p-3 text-sm text-[#8B3F3F]">
+                <p>{storageError}</p>
+                <button type="button" aria-label="Dismiss storage warning" onClick={() => setStorageError("")} className="font-semibold">Dismiss</button>
+              </div>
+            )}
             <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[#5C685F]" aria-label="Topic author color key">
               <span className="font-medium">Topic colors:</span>
               <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-sm border-l-4 border-[#5F8F6B] bg-[#EFF6F0]" /> Fernan</span>
@@ -223,7 +242,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-[#E7E0D2] bg-[#FAF7F2]/95 backdrop-blur-md lg:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-4 gap-2 px-3 py-2">
+        <div className="mx-auto grid max-w-md grid-cols-4 gap-1 px-2 py-2 sm:gap-2 sm:px-3">
           {navItems.slice(0, 4).map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href;

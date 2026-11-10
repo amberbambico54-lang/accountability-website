@@ -23,22 +23,28 @@ function getAllowedUser(session: Session | null) {
 }
 
 export function AuthProvider({ children }: Readonly<{ children: React.ReactNode }>) {
-  const [user, setUser] = useState<AppUser | null>(() => {
-    if (typeof window === "undefined") return null;
-    const demoName = window.localStorage.getItem(demoUserStorageKey);
-    if (demoName !== "Fernan" && demoName !== "Alpha") return null;
-    return {
-      name: demoName,
-      email: demoName === "Fernan" ? "amberbambico.54@gmail.com" : "alpha.v.sugano@gmail.com",
-    };
-  });
-  const [loading, setLoading] = useState(hasSupabaseConfig);
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const client = supabase;
     if (!client) {
-      return;
+      const timer = window.setTimeout(() => {
+        try {
+          const demoName = window.localStorage.getItem(demoUserStorageKey);
+          if (demoName === "Fernan" || demoName === "Alpha") {
+            setUser({
+              name: demoName,
+              email: demoName === "Fernan" ? "amberbambico.54@gmail.com" : "alpha.v.sugano@gmail.com",
+            });
+          }
+        } catch {
+          setError("Temporary sign-in could not be loaded from browser storage.");
+        }
+        setLoading(false);
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
 
     let active = true;
@@ -91,9 +97,13 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
     }
 
     const email = name === "Fernan" ? "amberbambico.54@gmail.com" : "alpha.v.sugano@gmail.com";
-    window.localStorage.setItem(demoUserStorageKey, name);
-    setUser({ name, email });
-    setError(null);
+    try {
+      window.localStorage.setItem(demoUserStorageKey, name);
+      setUser({ name, email });
+      setError(null);
+    } catch {
+      setError("Temporary sign-in could not be saved to browser storage.");
+    }
   };
 
   const signOut = async () => {

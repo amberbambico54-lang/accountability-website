@@ -12,6 +12,7 @@ import { AddItemDialog } from "@/components/ui/add-item-dialog";
 import { Progress } from "@/components/ui/progress";
 import { useWorkspacePages } from "@/components/workspace-pages-provider";
 import { getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
+import { useLocalStorageJson } from "@/lib/use-local-storage-json";
 
 type CustomTask = {
   id: string;
@@ -29,7 +30,7 @@ type CustomTopic = {
 };
 
 function normalizeTopics(value: unknown): CustomTopic[] {
-  if (!Array.isArray(value)) return [];
+  if (!Array.isArray(value)) throw new Error("Saved page topics must be a list.");
 
   return value.flatMap((item, topicIndex) => {
     if (typeof item !== "object" || item === null) return [];
@@ -89,16 +90,7 @@ export default function CustomWorkspacePage() {
 
 function CustomWorkspacePageEditor({ page }: { page: { id: string; title: string; description: string } }) {
   const { user } = useAuth();
-  const [topics, setTopics] = useState<CustomTopic[]>(() => {
-    if (typeof window === "undefined") return [];
-    const saved = window.localStorage.getItem(`our-space-custom-page-${page.id}`);
-    if (!saved) return [];
-    try {
-      return normalizeTopics(JSON.parse(saved));
-    } catch {
-      return [];
-    }
-  });
+  const [topics, setTopics] = useLocalStorageJson(`our-space-custom-page-${page.id}`, [] as CustomTopic[], normalizeTopics);
   const [topicDraft, setTopicDraft] = useState("");
   const [topicDescriptionDraft, setTopicDescriptionDraft] = useState("");
   const [addTopicOpen, setAddTopicOpen] = useState(false);
@@ -106,10 +98,6 @@ function CustomWorkspacePageEditor({ page }: { page: { id: string; title: string
   const [addTaskTopicId, setAddTaskTopicId] = useState<string | null>(null);
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
-
-  useEffect(() => {
-    window.localStorage.setItem(`our-space-custom-page-${page.id}`, JSON.stringify(topics));
-  }, [page.id, topics]);
 
   const handleAddTopic = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -167,7 +155,7 @@ function CustomWorkspacePageEditor({ page }: { page: { id: string; title: string
   return (
     <div className="space-y-6 pb-24 lg:pb-8">
       <section className="flex flex-col gap-5 rounded-[28px] border border-[#E7E0D2] bg-[linear-gradient(135deg,#FAF7F2_0%,#E7E0D2_100%)] p-6 shadow-sm md:flex-row md:items-center md:justify-between">
-        <div>
+        <div className="min-w-0">
           <Badge>Custom page</Badge>
           <h1 className="mt-3 text-3xl font-semibold text-[#313B32]">{page.title}</h1>
           {page.description && <p className="mt-2 max-w-2xl text-[#4E5A52]">{page.description}</p>}
@@ -203,9 +191,9 @@ function CustomWorkspacePageEditor({ page }: { page: { id: string; title: string
           {topics.map((topic) => {
             const progress = getProgress(topic.tasks);
             return (
-              <Card key={topic.id} className={getAuthorCardClass(topic.createdBy)}>
-                <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
-                  <div className="min-w-0 flex-1">
+              <Card key={topic.id} className={`min-w-0 ${getAuthorCardClass(topic.createdBy)}`}>
+                <CardHeader className="flex flex-col gap-3 pb-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 w-full flex-1">
                     {editingTopicId === topic.id ? (
                       <form
                         className="flex flex-wrap gap-2"
@@ -233,7 +221,7 @@ function CustomWorkspacePageEditor({ page }: { page: { id: string; title: string
                     )}
                   </div>
                   {editingTopicId !== topic.id && (
-                    <div className="flex shrink-0">
+                    <div className="flex shrink-0 self-end sm:self-auto">
                       <Button
                         type="button"
                         size="icon"
@@ -262,7 +250,7 @@ function CustomWorkspacePageEditor({ page }: { page: { id: string; title: string
                     ) : (
                       <ul className="mt-3 space-y-2">
                         {topic.tasks.map((task) => (
-                          <li key={task.id} className="flex items-start gap-3 rounded-xl bg-white/70 px-2 py-2">
+                          <li key={task.id} className="flex min-w-0 flex-wrap items-start gap-2 rounded-xl bg-white/70 px-2 py-2 sm:gap-3">
                             <input
                               type="checkbox"
                               checked={task.done}
@@ -270,8 +258,8 @@ function CustomWorkspacePageEditor({ page }: { page: { id: string; title: string
                               aria-label={`Mark ${task.text} ${task.done ? "incomplete" : "complete"}`}
                               className="mt-1 h-4 w-4 accent-[#71866E]"
                             />
-                            <span className={task.done ? "min-w-0 flex-1 text-[#71866E] line-through" : "min-w-0 flex-1 text-[#313B32]"}>{task.text}</span>
-                            <Badge className={getAuthorBadgeClass(task.createdBy)}>{task.createdBy}</Badge>
+                            <span className={task.done ? "min-w-0 flex-1 basis-[calc(100%-2rem)] text-[#71866E] line-through" : "min-w-0 flex-1 basis-[calc(100%-2rem)] text-[#313B32]"}>{task.text}</span>
+                            <Badge className={`shrink-0 ${getAuthorBadgeClass(task.createdBy)}`}>{task.createdBy}</Badge>
                             <Button type="button" size="icon" variant="ghost" aria-label={`Delete task ${task.text}`} onClick={() => handleDeleteTask(topic.id, task.id)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>

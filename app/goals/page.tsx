@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Goal, Pencil, Trash2, Trophy } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { annualGoals } from "@/lib/content";
 import { useAuth } from "@/components/auth-provider";
 import { getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
+import { useLocalStorageJson } from "@/lib/use-local-storage-json";
 
 const storageKey = "our-space-annual-goals";
 
@@ -97,6 +98,12 @@ const normalizeGoals = (value: unknown): GoalItem[] | null => {
   });
 };
 
+const parseGoals = (value: unknown) => {
+  const goals = normalizeGoals(value);
+  if (!goals) throw new Error("Saved goal data must be a list.");
+  return goals;
+};
+
 const getAllTasks = (goal: GoalItem) => goal.checklists.flatMap((checklist) => checklist.tasks);
 
 const getProgress = (goal: GoalItem) => {
@@ -116,17 +123,7 @@ const createUniqueId = (prefix: string, existingIds: string[]) => {
 
 export default function GoalsPage() {
   const { user } = useAuth();
-  const [goals, setGoals] = useState<GoalItem[]>(() => {
-    if (typeof window === "undefined") return initialGoals;
-    const saved = window.localStorage.getItem(storageKey);
-    if (!saved) return initialGoals;
-
-    try {
-      return normalizeGoals(JSON.parse(saved)) ?? initialGoals;
-    } catch {
-      return initialGoals;
-    }
-  });
+  const [goals, setGoals] = useLocalStorageJson(storageKey, initialGoals, parseGoals);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Faith");
   const [description, setDescription] = useState("");
@@ -142,11 +139,8 @@ export default function GoalsPage() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [taskEditText, setTaskEditText] = useState("");
 
-  useEffect(() => {
-    window.localStorage.setItem(storageKey, JSON.stringify(goals));
-  }, [goals]);
-
-  const handleAddGoal = () => {
+  const handleAddGoal = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (!title.trim()) return;
     if (!user) return;
 
@@ -324,7 +318,7 @@ export default function GoalsPage() {
           description="Choose a focus area and describe what you want to achieve."
           triggerLabel="Add a new goal"
         >
-          <div className="space-y-3">
+          <form className="space-y-3" onSubmit={handleAddGoal}>
             <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Goal title" aria-label="Goal title" required className="w-full rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] px-3 py-2 text-sm text-[#313B32] outline-none focus:border-[#71866E]" />
             <select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="Goal focus area" className="w-full rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] px-3 py-2 text-sm text-[#313B32] outline-none focus:border-[#71866E]">
               <option value="Faith">Faith</option>
@@ -337,9 +331,9 @@ export default function GoalsPage() {
             <textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={3} placeholder="What does success look like?" aria-label="Goal description" className="w-full rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] px-3 py-2 text-sm text-[#313B32] outline-none focus:border-[#71866E]" />
             <div className="flex justify-end gap-2">
               <Button type="button" variant="ghost" onClick={() => setAddGoalOpen(false)}>Cancel</Button>
-              <Button type="button" onClick={handleAddGoal}>Add goal</Button>
+              <Button type="submit">Add goal</Button>
             </div>
-          </div>
+          </form>
         </AddItemDialog>
       </section>
 
@@ -379,9 +373,9 @@ export default function GoalsPage() {
           const taskCount = getAllTasks(goal).length;
 
           return (
-            <Card key={goal.id} className={getAuthorCardClass(goal.createdBy)}>
-              <CardHeader className="flex flex-row items-center justify-between gap-3 pb-2">
-                <div className="min-w-0 flex-1">
+            <Card key={goal.id} className={`min-w-0 ${getAuthorCardClass(goal.createdBy)}`}>
+              <CardHeader className="flex flex-col gap-3 pb-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 w-full flex-1">
                   {editingGoalId === goal.id ? (
                     <div className="space-y-2">
                       <input
@@ -425,7 +419,7 @@ export default function GoalsPage() {
                     </>
                   )}
                 </div>
-                <div className="flex shrink-0 flex-col items-end gap-2">
+                <div className="flex w-full shrink-0 items-center justify-between gap-2 sm:w-auto sm:flex-col sm:items-end">
                   <Badge>{progress}%</Badge>
                   <div className="flex">
                     <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${goal.title}`} onClick={() => handleStartGoalEdit(goal)}>
@@ -454,7 +448,7 @@ export default function GoalsPage() {
                     <div key={checklist.id} className="rounded-2xl border border-[#E7E0D2] bg-white/70 p-3">
                       <div className="flex items-center justify-between gap-2">
                         {editingChecklistId === checklist.id ? (
-                          <div className="flex min-w-0 flex-1 gap-2">
+                          <div className="flex min-w-0 flex-1 flex-wrap gap-2">
                             <input
                               value={checklistEditTitle}
                               onChange={(event) => setChecklistEditTitle(event.target.value)}
@@ -466,7 +460,7 @@ export default function GoalsPage() {
                           </div>
                         ) : (
                           <>
-                            <div>
+                            <div className="min-w-0">
                               <p className="font-medium text-[#313B32]">{checklist.title}</p>
                               <Badge className={`mt-1 ${getAuthorBadgeClass(checklist.createdBy)}`}>{checklist.createdBy}</Badge>
                             </div>
@@ -486,7 +480,7 @@ export default function GoalsPage() {
                       ) : (
                         <ul className="mt-2 space-y-2">
                           {checklist.tasks.map((task) => (
-                            <li key={task.id} className="flex items-start gap-3 rounded-xl bg-white px-2 py-2">
+                            <li key={task.id} className="flex min-w-0 flex-wrap items-start gap-2 rounded-xl bg-white px-2 py-2 sm:gap-3">
                               <input
                                 type="checkbox"
                                 checked={task.done}
@@ -494,7 +488,7 @@ export default function GoalsPage() {
                                 className="mt-1 h-4 w-4 accent-[#71866E]"
                               />
                               {editingTaskId === task.id ? (
-                                <div className="flex min-w-0 flex-1 gap-2">
+                                <div className="flex min-w-0 flex-1 flex-wrap gap-2">
                                   <input
                                     value={taskEditText}
                                     onChange={(event) => setTaskEditText(event.target.value)}
@@ -506,8 +500,8 @@ export default function GoalsPage() {
                                 </div>
                               ) : (
                                 <>
-                                  <span className={`min-w-0 flex-1 ${task.done ? "text-[#71866E] line-through" : "text-[#313B32]"}`}>{task.text}</span>
-                                  <Badge className={getAuthorBadgeClass(task.createdBy)}>{task.createdBy}</Badge>
+                                  <span className={`min-w-0 flex-1 basis-[calc(100%-2rem)] ${task.done ? "text-[#71866E] line-through" : "text-[#313B32]"}`}>{task.text}</span>
+                                  <Badge className={`shrink-0 ${getAuthorBadgeClass(task.createdBy)}`}>{task.createdBy}</Badge>
                                   <div className="flex shrink-0">
                                     <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${task.text}`} onClick={() => handleStartTaskEdit(task)}>
                                       <Pencil className="h-4 w-4" />

@@ -1,56 +1,87 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, CalendarDays, FileText, Sparkles, Target, TrendingUp } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { iconMap, moduleCards, recentMoments, targetWeddingDate, userProfile } from "@/lib/content";
+import { annualGoals, budgetTransactions, businessProjects, iconMap, lessonTracks, moduleCards, targetWeddingDate, userProfile } from "@/lib/content";
 import { daysUntil, formatMoney } from "@/lib/utils";
 import { getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
 import { useWorkspacePages } from "@/components/workspace-pages-provider";
+import { useLocalStorageJson } from "@/lib/use-local-storage-json";
+import { useAuth } from "@/components/auth-provider";
 
-const storageKey = "our-space-dashboard-moments";
+type DataRecord = Record<string, unknown>;
 const targetSaved = 180000;
 
+function parseRecords(value: unknown): unknown[] {
+  return Array.isArray(value) ? value.filter((item) => typeof item === "object" && item !== null) : [];
+}
+
+function averageProgress(records: unknown[]) {
+  if (!records.length) return 0;
+  const total = records.reduce<number>((sum, item) => {
+    const record = item as DataRecord;
+    const progress = Number(record.progress);
+    return sum + (Number.isFinite(progress) ? Math.min(100, Math.max(0, progress)) : 0);
+  }, 0);
+  return Math.round(total / records.length);
+}
+
+function getGoalProgress(value: unknown) {
+  const goal = value as DataRecord;
+  const checklists = Array.isArray(goal.checklists) ? goal.checklists : [];
+  const tasks = checklists.flatMap((checklist) => {
+    if (typeof checklist !== "object" || checklist === null) return [];
+    const items = (checklist as DataRecord).tasks;
+    return Array.isArray(items) ? items : [];
+  });
+  if (tasks.length) {
+    const done = tasks.filter((task) => typeof task === "object" && task !== null && (task as DataRecord).done === true).length;
+    return Math.round((done / tasks.length) * 100);
+  }
+  const progress = Number(goal.progress);
+  return Number.isFinite(progress) ? Math.min(100, Math.max(0, progress)) : 0;
+}
+
 export default function HomePage() {
+  const { user } = useAuth();
   const { pages } = useWorkspacePages();
   const [remainingDays, setRemainingDays] = useState(0);
-  const [moments] = useState(() => {
-    if (typeof window === "undefined") return recentMoments;
-    const stored = window.localStorage.getItem(storageKey);
-    if (!stored) return recentMoments;
-    try {
-      return JSON.parse(stored);
-    } catch {
-      return recentMoments;
-    }
-  });
+  const [lessonData] = useLocalStorageJson<unknown[]>("our-space-lesson-tracks", lessonTracks, parseRecords);
+  const [businessData] = useLocalStorageJson<unknown[]>("our-space-business-projects", businessProjects, parseRecords);
+  const [goalData] = useLocalStorageJson<unknown[]>("our-space-annual-goals", annualGoals, parseRecords);
+  const [budgetData] = useLocalStorageJson<unknown[]>("our-space-budget", budgetTransactions, parseRecords);
 
   useEffect(() => {
-    // This value is intentionally resolved on the client after hydration to avoid prerender warnings.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setRemainingDays(daysUntil(targetWeddingDate));
-    window.localStorage.setItem(storageKey, JSON.stringify(moments));
-  }, [moments]);
-
-  const totalSaved = useMemo(() => {
-    if (typeof window === "undefined") return 54000;
-    const entries = JSON.parse(window.localStorage.getItem("our-space-budget") ?? "[]") as Array<{
-      amount?: number;
-      type?: string;
-    }>;
-    const deposits = entries.filter((entry) => entry.type === "Deposit").reduce((sum, entry) => sum + Number(entry.amount ?? 0), 0);
-    const withdrawals = entries.filter((entry) => entry.type !== "Deposit").reduce((sum, entry) => sum + Number(entry.amount ?? 0), 0);
-    return Math.max(0, deposits - withdrawals);
   }, []);
 
-  const lessonProgress = 68;
-  const goalProgress = 74;
-  const savingsProgress = (totalSaved / targetSaved) * 100;
+  const lessonProgress = averageProgress(lessonData);
+  const goalProgress = goalData.length
+    ? Math.round(goalData.reduce<number>((total, goal) => total + getGoalProgress(goal), 0) / goalData.length)
+    : 0;
+  const businessProgress = averageProgress(businessData);
+  const deposits = budgetData.reduce<number>((sum, item) => {
+    const record = item as DataRecord;
+    return record.type === "Deposit" ? sum + (Number(record.amount) || 0) : sum;
+  }, 0);
+  const withdrawals = budgetData.reduce<number>((sum, item) => {
+    const record = item as DataRecord;
+    return record.type !== "Deposit" ? sum + (Number(record.amount) || 0) : sum;
+  }, 0);
+  const totalSaved = Math.max(0, deposits - withdrawals);
+  const savingsProgress = Math.min(100, (totalSaved / targetSaved) * 100);
+  const focusItems = [
+    { label: "UpSkill", record: lessonData[0], accent: "bg-[#A4B49B]/20" },
+    { label: "Business", record: businessData[0], accent: "bg-[#71866E]/15" },
+    { label: "Faith goal", record: goalData[0], accent: "bg-[#E7E0D2]" },
+  ].filter((item) => item.record !== undefined);
   const permanentModules = moduleCards.filter((item) => !["/wedding", "/marriage", "/budget"].includes(item.href));
   const optionalModules = pages.map((page) => {
     const source = moduleCards.find((item) => item.href === `/${page.slug}`);
@@ -92,7 +123,7 @@ export default function HomePage() {
         <Card>
           <CardContent className="pt-5">
             <p className="text-xs uppercase tracking-[0.16em] text-[#71866E]">Today</p>
-            <h3 className="mt-3 text-2xl font-semibold text-[#313B32]">Good morning, {userProfile.name}</h3>
+            <h3 className="mt-3 text-2xl font-semibold text-[#313B32]">Good morning, {user?.name ?? userProfile.name}</h3>
             <p className="mt-2 text-sm text-[#4E5A52]">Keep building the kind of home that feels steady, kind, and alive.</p>
           </CardContent>
         </Card>
@@ -126,7 +157,7 @@ export default function HomePage() {
               <span className="text-3xl font-semibold text-[#313B32]">{formatMoney(totalSaved)}</span>
               <CalendarDays className="h-5 w-5 text-[#71866E]" />
             </div>
-            <p className="mt-2 text-sm text-[#4E5A52]">{formatMoney(targetSaved - totalSaved)} remaining to target</p>
+            <p className="mt-2 text-sm text-[#4E5A52]">{formatMoney(Math.max(0, targetSaved - totalSaved))} remaining to target</p>
           </CardContent>
         </Card>
       </section>
@@ -185,16 +216,16 @@ export default function HomePage() {
             <div>
               <div className="mb-2 flex items-center justify-between text-sm text-[#4E5A52]">
                 <span>Business idea progress</span>
-                <span>72%</span>
+                <span>{businessProgress}%</span>
               </div>
-              <Progress value={72} />
+              <Progress value={businessProgress} />
             </div>
             <div>
               <div className="mb-2 flex items-center justify-between text-sm text-[#4E5A52]">
                 <span>Annual goals</span>
-                <span>74%</span>
+                <span>{goalProgress}%</span>
               </div>
-              <Progress value={74} />
+              <Progress value={goalProgress} />
             </div>
             <div>
               <div className="mb-2 flex items-center justify-between text-sm text-[#4E5A52]">
@@ -208,22 +239,27 @@ export default function HomePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Our recent moments</CardTitle>
+            <CardTitle>Current focus</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {moments.slice(0, 5).map((item: { title: string; time: string; description: string; owner: string; accent: string }) => (
-              <div key={`${item.title}-${item.time}`} className={`flex gap-3 rounded-2xl border p-3 ${getAuthorCardClass(item.owner)}`}>
-                <div className={`h-10 w-10 rounded-xl ${item.accent}`} />
+            {focusItems.map(({ label, record, accent }) => {
+              const details = record as DataRecord;
+              const owner = typeof details.owner === "string" ? details.owner : "Shared";
+              const progress = Number(details.progress);
+              return (
+              <div key={label} className={`flex gap-3 rounded-2xl border p-3 ${getAuthorCardClass(owner)}`}>
+                <div className={`h-10 w-10 rounded-xl ${accent}`} />
                 <div className="flex-1">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-[#313B32]">{item.title}</p>
-                    <Badge className={getAuthorBadgeClass(item.owner)}>{item.owner}</Badge>
+                    <p className="text-sm font-medium text-[#313B32]">{label}: {typeof details.title === "string" ? details.title : "Untitled"}</p>
+                    <Badge className={getAuthorBadgeClass(owner)}>{owner}</Badge>
                   </div>
-                  <p className="mt-1 text-sm text-[#4E5A52]">{item.description}</p>
-                  <p className="mt-2 text-[11px] uppercase tracking-[0.12em] text-[#71866E]">{item.time}</p>
+                  <p className="mt-1 text-sm text-[#4E5A52]">{typeof details.description === "string" ? details.description : "Keep making progress at your own pace."}</p>
+                  {Number.isFinite(progress) && <p className="mt-2 text-[11px] uppercase tracking-[0.12em] text-[#71866E]">{Math.round(progress)}% complete</p>}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       </section>

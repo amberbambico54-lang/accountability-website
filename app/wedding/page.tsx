@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CalendarHeart, Camera, Gift, Pencil, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,8 @@ import { weddingMoodBoard, weddingProjects, wishListItems } from "@/lib/content"
 import { useAuth } from "@/components/auth-provider";
 import { getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
 import { useWorkspacePages } from "@/components/workspace-pages-provider";
+import { useLocalStorageJson } from "@/lib/use-local-storage-json";
+import { prepareImageForStorage } from "@/lib/image-upload";
 
 const storageKey = "our-space-wedding-board";
 const projectsStorageKey = "our-space-wedding-projects";
@@ -37,6 +39,15 @@ type WeddingProject = {
   title: string;
   due: string;
   tasks: WeddingTask[];
+  createdBy: string;
+};
+
+type WeddingWish = {
+  id: string;
+  name: string;
+  cost: number;
+  priority: string;
+  status: string;
   createdBy: string;
 };
 
@@ -66,55 +77,79 @@ const initialWeddingProjects: WeddingProject[] = weddingProjects.map((project) =
   tasks: project.tasks.map((task) => ({ ...task, createdBy: "Fernan" })),
 }));
 
+const wishListStorageKey = "our-space-wedding-wishlist";
+const initialWishList: WeddingWish[] = wishListItems.map((item, index) => ({
+  ...item,
+  id: `wedding-wish-${index}`,
+  createdBy: "Fernan",
+}));
+
+function parseWishList(value: unknown): WeddingWish[] {
+  if (!Array.isArray(value)) throw new Error("Saved wish list data must be a list.");
+  return value.flatMap((item, index) => {
+    if (typeof item !== "object" || item === null) return [];
+    const wish = item as Partial<WeddingWish>;
+    if (typeof wish.name !== "string") return [];
+    const cost = Number(wish.cost);
+    return [{
+      id: typeof wish.id === "string" ? wish.id : `wedding-wish-${index}`,
+      name: wish.name,
+      cost: Number.isFinite(cost) && cost > 0 ? cost : 0,
+      priority: typeof wish.priority === "string" ? wish.priority : "Medium",
+      status: typeof wish.status === "string" ? wish.status : "Planning",
+      createdBy: wish.createdBy === "Alpha" ? "Alpha" : "Fernan",
+    }];
+  });
+}
+
+function parseMoodBoard(value: unknown): MoodBoardItem[] {
+  if (!Array.isArray(value)) throw new Error("Saved mood board data must be a list.");
+  return value.flatMap((item, index) => {
+    if (typeof item !== "object" || item === null) return [];
+    const mood = item as Partial<MoodBoardItem>;
+    const savedImage = typeof mood.image === "string" ? mood.image : "";
+    return [{
+      id: typeof mood.id === "string" ? mood.id : `wedding-mood-${index}`,
+      title: typeof mood.title === "string" ? mood.title : "Wedding inspiration",
+      note: typeof mood.note === "string" ? mood.note : "",
+      image: savedImage.startsWith("blob:") || !savedImage ? initialMoodBoard[index]?.image ?? "" : savedImage,
+      createdBy: mood.createdBy === "Alpha" ? "Alpha" : "Fernan",
+    }];
+  });
+}
+
+function parseWeddingProjects(value: unknown): WeddingProject[] {
+  if (!Array.isArray(value)) throw new Error("Saved wedding plan data must be a list.");
+  return value.flatMap((item, index) => {
+    if (typeof item !== "object" || item === null) return [];
+    const project = item as Partial<WeddingProject>;
+    const tasks = Array.isArray(project.tasks) ? project.tasks : [];
+    return [{
+      id: typeof project.id === "string" ? project.id : `wedding-project-${index}`,
+      title: typeof project.title === "string" ? project.title : "Untitled plan",
+      due: typeof project.due === "string" ? project.due : "TBD",
+      createdBy: project.createdBy === "Alpha" ? "Alpha" : "Fernan",
+      tasks: tasks.flatMap((task, taskIndex) => {
+        if (typeof task !== "object" || task === null) return [];
+        const parsedTask = task as Partial<WeddingTask>;
+        return [{
+          id: typeof parsedTask.id === "string" ? parsedTask.id : `wedding-project-${index}-task-${taskIndex}`,
+          text: typeof parsedTask.text === "string" ? parsedTask.text : "New task",
+          done: Boolean(parsedTask.done),
+          createdBy: parsedTask.createdBy === "Alpha" ? "Alpha" : "Fernan",
+        }];
+      }),
+    }];
+  });
+}
+
 export default function WeddingPage() {
   const { user } = useAuth();
   const { pages } = useWorkspacePages();
   const pageDetails = pages.find((page) => page.kind === "wedding");
-  const [board, setBoard] = useState<MoodBoardItem[]>(() => {
-    if (typeof window === "undefined") return initialMoodBoard;
-    const saved = window.localStorage.getItem(storageKey);
-    if (!saved) return initialMoodBoard;
-    try {
-      const parsed = JSON.parse(saved);
-      if (!Array.isArray(parsed)) return initialMoodBoard;
-      return parsed.map((item: Partial<MoodBoardItem>, index: number) => ({
-        id: item.id ?? `wedding-mood-${index}`,
-        title: item.title ?? "Wedding inspiration",
-        note: item.note ?? "",
-        image: item.image ?? "",
-        createdBy: item.createdBy === "Alpha" ? "Alpha" : "Fernan",
-      }));
-    } catch {
-      return initialMoodBoard;
-    }
-  });
-  const [projects, setProjects] = useState<WeddingProject[]>(() => {
-    if (typeof window === "undefined") return initialWeddingProjects;
-    const saved = window.localStorage.getItem(projectsStorageKey);
-    if (!saved) return initialWeddingProjects;
-
-    try {
-      const parsed = JSON.parse(saved);
-      if (!Array.isArray(parsed)) return initialWeddingProjects;
-
-      return parsed.map((project: Partial<WeddingProject>, index: number) => ({
-        id: project.id ?? `wedding-project-${index}`,
-        title: project.title ?? "Untitled plan",
-        due: project.due ?? "TBD",
-        createdBy: project.createdBy === "Alpha" ? "Alpha" : "Fernan",
-        tasks: Array.isArray(project.tasks)
-          ? project.tasks.map((task: Partial<WeddingTask>, taskIndex: number) => ({
-              id: task.id ?? `wedding-project-${index}-task-${taskIndex}`,
-              text: task.text ?? "New task",
-              done: Boolean(task.done),
-              createdBy: task.createdBy === "Alpha" ? "Alpha" : "Fernan",
-            }))
-          : [],
-      }));
-    } catch {
-      return initialWeddingProjects;
-    }
-  });
+  const [board, setBoard] = useLocalStorageJson(storageKey, initialMoodBoard, parseMoodBoard);
+  const [projects, setProjects] = useLocalStorageJson(projectsStorageKey, initialWeddingProjects, parseWeddingProjects);
+  const [wishList, setWishList] = useLocalStorageJson(wishListStorageKey, initialWishList, parseWishList);
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
   const [image, setImage] = useState<string>("");
@@ -130,23 +165,26 @@ export default function WeddingPage() {
   const [taskEditText, setTaskEditText] = useState("");
   const [editingMoodId, setEditingMoodId] = useState<string | null>(null);
   const [moodEdit, setMoodEdit] = useState({ title: "", note: "", image: "" });
+  const [imageError, setImageError] = useState("");
+  const [wishDialogOpen, setWishDialogOpen] = useState(false);
+  const [wishDraft, setWishDraft] = useState({ name: "", cost: "", priority: "Medium", status: "Planning" });
+  const [editingWishId, setEditingWishId] = useState<string | null>(null);
+  const [wishEdit, setWishEdit] = useState({ name: "", cost: "", priority: "Medium", status: "Planning" });
 
-  useEffect(() => {
-    window.localStorage.setItem(storageKey, JSON.stringify(board));
-  }, [board]);
-
-  useEffect(() => {
-    window.localStorage.setItem(projectsStorageKey, JSON.stringify(projects));
-  }, [projects]);
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const previewUrl = URL.createObjectURL(file);
-    setImage(previewUrl);
+    event.target.value = "";
+    try {
+      setImage(await prepareImageForStorage(file));
+      setImageError("");
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : "The image could not be uploaded.");
+    }
   };
 
-  const handleAddMood = () => {
+  const handleAddMood = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (!title.trim()) return;
     if (!user) return;
     const nextItem = {
@@ -168,10 +206,17 @@ export default function WeddingPage() {
     setMoodEdit({ title: item.title, note: item.note, image: item.image });
   };
 
-  const handleMoodEditFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMoodEditFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    setMoodEdit((current) => ({ ...current, image: URL.createObjectURL(file) }));
+    event.target.value = "";
+    try {
+      const preparedImage = await prepareImageForStorage(file);
+      setMoodEdit((current) => ({ ...current, image: preparedImage }));
+      setImageError("");
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : "The image could not be uploaded.");
+    }
   };
 
   const handleSaveMoodEdit = (itemId: string) => {
@@ -188,7 +233,8 @@ export default function WeddingPage() {
     if (editingMoodId === itemId) setEditingMoodId(null);
   };
 
-  const handleAddProject = () => {
+  const handleAddProject = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (!projectTitle.trim()) return;
     if (!user) return;
 
@@ -270,6 +316,33 @@ export default function WeddingPage() {
     if (editingTaskId === taskId) setEditingTaskId(null);
   };
 
+  const handleAddWish = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const name = wishDraft.name.trim();
+    const cost = Number(wishDraft.cost || 0);
+    if (!name || !Number.isFinite(cost) || cost < 0 || !user) return;
+    setWishList((current) => [{
+      id: createUniqueId("wedding-wish", current.map((item) => item.id)),
+      name,
+      cost,
+      priority: wishDraft.priority,
+      status: wishDraft.status,
+      createdBy: user.name,
+    }, ...current]);
+    setWishDraft({ name: "", cost: "", priority: "Medium", status: "Planning" });
+    setWishDialogOpen(false);
+  };
+
+  const handleSaveWish = (wishId: string) => {
+    const name = wishEdit.name.trim();
+    const cost = Number(wishEdit.cost || 0);
+    if (!name || !Number.isFinite(cost) || cost < 0) return;
+    setWishList((current) => current.map((item) => item.id === wishId
+      ? { ...item, name, cost, priority: wishEdit.priority, status: wishEdit.status }
+      : item));
+    setEditingWishId(null);
+  };
+
   return (
     <div className="space-y-6 pb-24 lg:pb-8">
       <section className="flex flex-col gap-5 rounded-[28px] border border-[#E7E0D2] bg-[linear-gradient(135deg,#FAF7F2_0%,#E7E0D2_100%)] p-6 shadow-sm md:flex-row md:items-center md:justify-between">
@@ -289,14 +362,14 @@ export default function WeddingPage() {
             description="Create a plan and then add checklist steps."
             triggerLabel="Add a wedding plan"
           >
-            <div className="space-y-3">
+            <form className="space-y-3" onSubmit={handleAddProject}>
               <input value={projectTitle} onChange={(event) => setProjectTitle(event.target.value)} placeholder="Plan title, e.g. Ceremony" aria-label="Wedding plan title" required className="w-full rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] px-3 py-2 text-sm text-[#313B32] outline-none focus:border-[#71866E]" />
               <input value={projectDue} onChange={(event) => setProjectDue(event.target.value)} placeholder="Target date or month (optional)" aria-label="Target date or month" className="w-full rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] px-3 py-2 text-sm text-[#313B32] outline-none focus:border-[#71866E]" />
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={() => setAddProjectOpen(false)}>Cancel</Button>
-                <Button type="button" onClick={handleAddProject}>Add plan</Button>
+                <Button type="submit">Add plan</Button>
               </div>
-            </div>
+            </form>
           </AddItemDialog>
           <AddItemDialog
             open={addMoodOpen}
@@ -305,9 +378,10 @@ export default function WeddingPage() {
             description="Save an inspiration image with a title and note."
             triggerLabel="Add inspiration"
           >
-            <div className="space-y-3">
+            <form className="space-y-3" onSubmit={handleAddMood}>
               <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Mood name" aria-label="Mood name" required className="w-full rounded-2xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm text-[#313B32] outline-none focus:border-[#71866E]" />
               <input type="file" accept="image/*" onChange={handleFileChange} aria-label="Inspiration image" className="w-full rounded-2xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm text-[#313B32]" />
+              {imageError && <p role="alert" className="text-sm text-[#8B3F3F]">{imageError}</p>}
               <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={3} placeholder="Add a note or description for this inspiration" aria-label="Inspiration description" className="w-full rounded-2xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm text-[#313B32] outline-none focus:border-[#71866E]" />
               {image && (
                 <div className="overflow-hidden rounded-2xl border border-[#E7E0D2]">
@@ -316,9 +390,9 @@ export default function WeddingPage() {
               )}
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={() => setAddMoodOpen(false)}>Cancel</Button>
-                <Button type="button" onClick={handleAddMood}>Add to mood board</Button>
+                <Button type="submit">Add to mood board</Button>
               </div>
-            </div>
+            </form>
           </AddItemDialog>
         </div>
       </section>
@@ -338,7 +412,7 @@ export default function WeddingPage() {
             <CardTitle className="flex items-center gap-2"><Gift className="h-4 w-4" /> Wish list</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold text-[#313B32]">{wishListItems.length}</p>
+            <p className="text-2xl font-semibold text-[#313B32]">{wishList.length}</p>
             <p className="mt-2 text-sm text-[#4E5A52]">Priority items and wishes</p>
           </CardContent>
         </Card>
@@ -363,9 +437,9 @@ export default function WeddingPage() {
             const progress = getProgress(project.tasks);
 
             return (
-              <Card key={project.id} className={getAuthorCardClass(project.createdBy)}>
-                <CardHeader className="flex flex-row items-center justify-between gap-3 pb-2">
-                  <div className="min-w-0 flex-1">
+              <Card key={project.id} className={`min-w-0 ${getAuthorCardClass(project.createdBy)}`}>
+                <CardHeader className="flex flex-col gap-3 pb-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 w-full flex-1">
                     {editingProjectId === project.id ? (
                       <div className="space-y-2">
                         <input
@@ -393,7 +467,7 @@ export default function WeddingPage() {
                       </>
                     )}
                   </div>
-                  <div className="flex shrink-0 flex-col items-end gap-2">
+                  <div className="flex w-full shrink-0 items-center justify-between gap-2 sm:w-auto sm:flex-col sm:items-end">
                     <Badge>{progress}%</Badge>
                     <div className="flex">
                       <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${project.title}`} onClick={() => handleStartProjectEdit(project)}>
@@ -414,7 +488,7 @@ export default function WeddingPage() {
                     ) : (
                       <ul className="mt-3 space-y-2">
                         {project.tasks.map((task) => (
-                          <li key={task.id} className="flex items-start gap-3 rounded-xl bg-white/70 px-2 py-2">
+                          <li key={task.id} className="flex min-w-0 flex-wrap items-start gap-2 rounded-xl bg-white/70 px-2 py-2 sm:gap-3">
                             <input
                               type="checkbox"
                               checked={task.done}
@@ -422,7 +496,7 @@ export default function WeddingPage() {
                               className="mt-1 h-4 w-4 accent-[#71866E]"
                             />
                             {editingTaskId === task.id ? (
-                              <div className="flex min-w-0 flex-1 gap-2">
+                              <div className="flex min-w-0 flex-1 flex-wrap gap-2">
                                 <input
                                   value={taskEditText}
                                   onChange={(event) => setTaskEditText(event.target.value)}
@@ -434,8 +508,8 @@ export default function WeddingPage() {
                               </div>
                             ) : (
                               <>
-                                <span className={`min-w-0 flex-1 ${task.done ? "text-[#71866E] line-through" : "text-[#313B32]"}`}>{task.text}</span>
-                                <Badge className={getAuthorBadgeClass(task.createdBy)}>{task.createdBy}</Badge>
+                                <span className={`min-w-0 flex-1 basis-[calc(100%-2rem)] ${task.done ? "text-[#71866E] line-through" : "text-[#313B32]"}`}>{task.text}</span>
+                                <Badge className={`shrink-0 ${getAuthorBadgeClass(task.createdBy)}`}>{task.createdBy}</Badge>
                                 <div className="flex shrink-0">
                                   <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${task.text}`} onClick={() => handleStartTaskEdit(task)}>
                                     <Pencil className="h-4 w-4" />
@@ -522,6 +596,7 @@ export default function WeddingPage() {
                         aria-label="Replace mood board image"
                         className="w-full rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm text-[#313B32]"
                       />
+                      {imageError && <p role="alert" className="text-sm text-[#8B3F3F]">{imageError}</p>}
                       <div className="flex gap-2">
                         <Button type="button" size="sm" onClick={() => handleSaveMoodEdit(item.id)}>Save</Button>
                         <Button type="button" size="sm" variant="ghost" onClick={() => setEditingMoodId(null)}>Cancel</Button>
@@ -534,6 +609,7 @@ export default function WeddingPage() {
                         alt={item.title}
                         width={800}
                         height={512}
+                        unoptimized={item.image.startsWith("data:")}
                         className="h-52 w-full object-cover"
                       />
                       <div className="flex items-start justify-between gap-2 p-3">
@@ -560,18 +636,54 @@ export default function WeddingPage() {
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
             <CardTitle>Wish list</CardTitle>
+            <AddItemDialog open={wishDialogOpen} onOpenChange={setWishDialogOpen} title="Add a wedding wish" description="Keep an item, its estimated cost, priority, and status in the shared list." triggerLabel="Add wish">
+              <form className="space-y-3" onSubmit={handleAddWish}>
+                <input required value={wishDraft.name} onChange={(event) => setWishDraft({ ...wishDraft, name: event.target.value })} placeholder="Item or wish" aria-label="Wish name" className="w-full rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm" />
+                <input type="number" min="0" step="0.01" value={wishDraft.cost} onChange={(event) => setWishDraft({ ...wishDraft, cost: event.target.value })} placeholder="Estimated cost (optional)" aria-label="Estimated cost" className="w-full rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm" />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <select value={wishDraft.priority} onChange={(event) => setWishDraft({ ...wishDraft, priority: event.target.value })} aria-label="Wish priority" className="rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm"><option>High</option><option>Medium</option><option>Low</option></select>
+                  <input value={wishDraft.status} onChange={(event) => setWishDraft({ ...wishDraft, status: event.target.value })} aria-label="Wish status" placeholder="Status" className="rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm" />
+                </div>
+                <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setWishDialogOpen(false)}>Cancel</Button><Button type="submit">Add wish</Button></div>
+              </form>
+            </AddItemDialog>
           </CardHeader>
           <CardContent className="space-y-3">
-            {wishListItems.map((item) => (
-              <div key={item.name} className="rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="font-medium text-[#313B32]">{item.name}</p>
-                  <Badge>{item.priority}</Badge>
-                </div>
-                <p className="mt-2 text-sm text-[#4E5A52]">Status: {item.status}</p>
-                <p className="mt-1 text-sm text-[#4E5A52]">Estimated cost: {item.cost ? `₱${item.cost.toLocaleString()}` : `Not set yet`}</p>
+            {wishList.length === 0 && <p className="text-sm text-[#4E5A52]">No wishes have been added yet.</p>}
+            {wishList.map((item) => (
+              <div key={item.id} className={`rounded-2xl border border-[#E7E0D2] p-3 ${getAuthorCardClass(item.createdBy)}`}>
+                {editingWishId === item.id ? (
+                  <div className="space-y-2">
+                    <input value={wishEdit.name} onChange={(event) => setWishEdit({ ...wishEdit, name: event.target.value })} aria-label="Edit wish name" className="w-full rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm" />
+                    <input type="number" min="0" step="0.01" value={wishEdit.cost} onChange={(event) => setWishEdit({ ...wishEdit, cost: event.target.value })} aria-label="Edit wish cost" className="w-full rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm" />
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <select value={wishEdit.priority} onChange={(event) => setWishEdit({ ...wishEdit, priority: event.target.value })} aria-label="Edit wish priority" className="rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm"><option>High</option><option>Medium</option><option>Low</option></select>
+                      <input value={wishEdit.status} onChange={(event) => setWishEdit({ ...wishEdit, status: event.target.value })} aria-label="Edit wish status" className="rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm" />
+                    </div>
+                    <div className="flex gap-2"><Button type="button" size="sm" onClick={() => handleSaveWish(item.id)}>Save</Button><Button type="button" size="sm" variant="ghost" onClick={() => setEditingWishId(null)}>Cancel</Button></div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-medium text-[#313B32]">{item.name}</p>
+                      <Badge>{item.priority}</Badge>
+                    </div>
+                    <p className="mt-2 text-sm text-[#4E5A52]">Status: {item.status}</p>
+                    <p className="mt-1 text-sm text-[#4E5A52]">Estimated cost: {item.cost ? `₱${item.cost.toLocaleString()}` : "Not set yet"}</p>
+                    <div className="mt-2 flex items-center justify-between">
+                      <Badge className={getAuthorBadgeClass(item.createdBy)}>{item.createdBy}</Badge>
+                      <div className="flex">
+                        <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${item.name}`} onClick={() => {
+                          setEditingWishId(item.id);
+                          setWishEdit({ name: item.name, cost: String(item.cost || ""), priority: item.priority, status: item.status });
+                        }}><Pencil className="h-4 w-4" /></Button>
+                        <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${item.name}`} onClick={() => setWishList((current) => current.filter((wish) => wish.id !== item.id))}><Trash2 className="h-4 w-4" /></Button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </CardContent>
