@@ -10,7 +10,7 @@ import { AddItemDialog } from "@/components/ui/add-item-dialog";
 import { Progress } from "@/components/ui/progress";
 import { businessProjects } from "@/lib/content";
 import { useAuth } from "@/components/auth-provider";
-import { getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
+import { canManageContent, getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
 import { useLocalStorageJson } from "@/lib/use-local-storage-json";
 
 const storageKey = "our-space-business-projects";
@@ -126,12 +126,16 @@ export default function BusinessPage() {
   };
 
   const updateIdeaProgress = (id: string, nextProgress: number) => {
+    const idea = ideas.find((item) => item.id === id);
+    if (!canManageContent(idea?.createdBy, user?.name)) return;
     setIdeas((current) => current.map((idea) => idea.id === id
       ? { ...idea, progress: toPercent(nextProgress) }
       : idea));
   };
 
   const updateIdeaDescription = (id: string, nextDescription: string) => {
+    const idea = ideas.find((item) => item.id === id);
+    if (!canManageContent(idea?.createdBy, user?.name)) return;
     setIdeas((current) => current.map((idea) => idea.id === id
       ? { ...idea, description: nextDescription }
       : idea));
@@ -141,6 +145,7 @@ export default function BusinessPage() {
     event.preventDefault();
     const text = (taskDrafts[idea.id] ?? "").trim();
     if (!text || !user) return;
+    if (!canManageContent(idea.createdBy, user.name)) return;
     const task: BusinessTask = {
       id: `business-task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       text,
@@ -155,23 +160,30 @@ export default function BusinessPage() {
   };
 
   const handleToggleTask = (ideaId: string, taskId: string) => {
+    const idea = ideas.find((item) => item.id === ideaId);
+    if (!canManageContent(idea?.createdBy, user?.name)) return;
     setIdeas((current) => current.map((idea) => idea.id === ideaId
       ? { ...idea, tasks: idea.tasks.map((task) => task.id === taskId ? { ...task, done: !task.done } : task) }
       : idea));
   };
 
   const handleDeleteTask = (ideaId: string, taskId: string) => {
+    const idea = ideas.find((item) => item.id === ideaId);
+    if (!canManageContent(idea?.createdBy, user?.name)) return;
     setIdeas((current) => current.map((idea) => idea.id === ideaId
       ? { ...idea, tasks: idea.tasks.filter((task) => task.id !== taskId) }
       : idea));
   };
 
   const handleStartEditing = (idea: BusinessIdea) => {
+    if (!canManageContent(idea.createdBy, user?.name)) return;
     setEditingIdeaId(idea.id);
     setEditedTitle(idea.title);
   };
 
   const handleSaveTitle = (ideaId: string) => {
+    const idea = ideas.find((item) => item.id === ideaId);
+    if (!canManageContent(idea?.createdBy, user?.name)) return;
     const trimmedTitle = editedTitle.trim();
     if (!trimmedTitle) return;
     setIdeas((current) => current.map((idea) => idea.id === ideaId
@@ -181,6 +193,7 @@ export default function BusinessPage() {
   };
 
   const handleDeleteIdea = (idea: BusinessIdea) => {
+    if (!canManageContent(idea.createdBy, user?.name)) return;
     if (!window.confirm(`Delete "${idea.title}"? This cannot be undone.`)) return;
     setIdeas((current) => current.filter((item) => item.id !== idea.id));
     if (editingIdeaId === idea.id) setEditingIdeaId(null);
@@ -263,11 +276,13 @@ export default function BusinessPage() {
             </CardContent>
           </Card>
         )}
-        {ideas.map((idea) => (
+        {ideas.map((idea) => {
+          const canManageIdea = canManageContent(idea.createdBy, user?.name);
+          return (
           <Card key={idea.id} className={`min-w-0 ${getAuthorCardClass(idea.createdBy)}`}>
             <CardHeader className="flex flex-col gap-3 pb-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 w-full flex-1">
-                {editingIdeaId === idea.id ? (
+                {editingIdeaId === idea.id && canManageIdea ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <input
                       value={editedTitle}
@@ -283,10 +298,11 @@ export default function BusinessPage() {
                 )}
                 <p className="mt-1 text-xs uppercase tracking-[0.12em] text-[#71866E]">{idea.owner} · Business idea</p>
                 <Badge className={`mt-2 ${getAuthorBadgeClass(idea.createdBy)}`}>{idea.createdBy}</Badge>
+                {!canManageIdea && <p className="mt-1 text-xs text-[#71866E]">Only {idea.createdBy} can edit or delete this idea.</p>}
               </div>
               <div className="flex w-full shrink-0 items-center justify-between gap-2 sm:w-auto sm:justify-end">
                 <Badge>{idea.progress}%</Badge>
-                {editingIdeaId !== idea.id && (
+                {canManageIdea && editingIdeaId !== idea.id && (
                   <div className="flex">
                     <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${idea.title}`} onClick={() => handleStartEditing(idea)}>
                       <Pencil className="h-4 w-4" />
@@ -302,11 +318,12 @@ export default function BusinessPage() {
               <textarea
                 value={idea.description}
                 onChange={(event) => updateIdeaDescription(idea.id, event.target.value)}
+                readOnly={!canManageIdea}
                 aria-label={`Description for ${idea.title}`}
                 rows={3}
                 className="w-full rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] px-3 py-2 text-sm text-[#313B32] outline-none focus:border-[#71866E]"
               />
-              <label className="block space-y-2 text-sm text-[#4E5A52]">
+              {canManageIdea ? <label className="block space-y-2 text-sm text-[#4E5A52]">
                 <span className="flex items-center justify-between">
                   <span>Update progress</span>
                   <span>{idea.progress}%</span>
@@ -320,7 +337,7 @@ export default function BusinessPage() {
                   aria-label={`Progress for ${idea.title}`}
                   className="h-2 w-full cursor-pointer accent-[#71866E]"
                 />
-              </label>
+              </label> : <p className="text-sm text-[#71866E]">Only {idea.createdBy} can edit this idea and its progress.</p>}
               <Progress value={idea.progress} />
               <div className="space-y-2 rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] p-4">
                 <p className="text-[11px] uppercase tracking-[0.14em] text-[#71866E]">Checklist</p>
@@ -334,19 +351,22 @@ export default function BusinessPage() {
                           type="checkbox"
                           checked={task.done}
                           onChange={() => handleToggleTask(idea.id, task.id)}
+                          disabled={!canManageIdea}
                           aria-label={`Mark ${task.text} ${task.done ? "incomplete" : "complete"}`}
                           className="mt-1 h-4 w-4 accent-[#71866E]"
                         />
                         <span className={task.done ? "min-w-0 flex-1 text-[#71866E] line-through" : "min-w-0 flex-1 text-[#313B32]"}>{task.text}</span>
                         <Badge className={getAuthorBadgeClass(task.createdBy)}>{task.createdBy}</Badge>
-                        <Button type="button" size="icon" variant="ghost" aria-label={`Delete task ${task.text}`} onClick={() => handleDeleteTask(idea.id, task.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canManageIdea && (
+                          <Button type="button" size="icon" variant="ghost" aria-label={`Delete task ${task.text}`} onClick={() => handleDeleteTask(idea.id, task.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </li>
                     ))}
                   </ul>
                 )}
-                <AddItemDialog
+                {canManageIdea ? <AddItemDialog
                   open={addTaskIdeaId === idea.id}
                   onOpenChange={(open) => setAddTaskIdeaId(open ? idea.id : null)}
                   title="Add a business idea checklist task"
@@ -367,7 +387,7 @@ export default function BusinessPage() {
                       <Button type="submit">Add task</Button>
                     </div>
                   </form>
-                </AddItemDialog>
+                </AddItemDialog> : null}
                 {idea.tasks.length > 0 && (
                   <div className="flex items-center justify-between text-sm text-[#4E5A52]">
                     <span>{idea.tasks.filter((task) => task.done).length} of {idea.tasks.length} tasks completed</span>
@@ -376,7 +396,8 @@ export default function BusinessPage() {
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </section>
     </div>
   );

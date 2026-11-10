@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BookOpenCheck, CheckCircle2, Clock3, Trash2 } from "lucide-react";
+import { BookOpenCheck, CheckCircle2, Clock3, Pencil, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { AddItemDialog } from "@/components/ui/add-item-dialog";
 import { Progress } from "@/components/ui/progress";
 import { lessonTracks } from "@/lib/content";
 import { useAuth } from "@/components/auth-provider";
-import { getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
+import { canManageContent, getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
 import { useLocalStorageJson } from "@/lib/use-local-storage-json";
 
 const storageKey = "our-space-lesson-tracks";
@@ -115,6 +115,8 @@ export default function LessonsPage() {
   const [taskDrafts, setTaskDrafts] = useState<Record<string, string>>({});
   const [addTrackOpen, setAddTrackOpen] = useState(false);
   const [addStepTrackId, setAddStepTrackId] = useState<string | null>(null);
+  const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
+  const [editedTrackTitle, setEditedTrackTitle] = useState("");
 
   const handleAddTrack = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -141,6 +143,8 @@ export default function LessonsPage() {
     event.preventDefault();
     const text = (taskDrafts[trackId] ?? "").trim();
     if (!text || !user) return;
+    const track = tracks.find((item) => item.id === trackId);
+    if (!track || !canManageContent(track.createdBy, user.name)) return;
     setTracks((current) => current.map((track) => track.id === trackId
       ? {
           ...track,
@@ -153,18 +157,46 @@ export default function LessonsPage() {
   };
 
   const handleToggleTask = (trackId: string, taskId: string) => {
+    const track = tracks.find((item) => item.id === trackId);
+    if (!canManageContent(track?.createdBy, user?.name)) return;
     setTracks((current) => current.map((track) => track.id === trackId
       ? { ...track, tasks: track.tasks.map((task) => task.id === taskId ? { ...task, done: !task.done } : task) }
       : track));
   };
 
   const handleDeleteTask = (trackId: string, taskId: string) => {
+    const track = tracks.find((item) => item.id === trackId);
+    if (!canManageContent(track?.createdBy, user?.name)) return;
     setTracks((current) => current.map((track) => track.id === trackId
       ? { ...track, tasks: track.tasks.filter((task) => task.id !== taskId) }
       : track));
   };
 
+  const handleStartTrackEdit = (track: LessonTrack) => {
+    if (!canManageContent(track.createdBy, user?.name)) return;
+    setEditingTrackId(track.id);
+    setEditedTrackTitle(track.title);
+  };
+
+  const handleSaveTrack = (trackId: string) => {
+    const track = tracks.find((item) => item.id === trackId);
+    if (!canManageContent(track?.createdBy, user?.name) || !editedTrackTitle.trim()) return;
+    setTracks((current) => current.map((item) => item.id === trackId
+      ? { ...item, title: editedTrackTitle.trim() }
+      : item));
+    setEditingTrackId(null);
+  };
+
+  const handleDeleteTrack = (trackId: string) => {
+    const track = tracks.find((item) => item.id === trackId);
+    if (!canManageContent(track?.createdBy, user?.name)) return;
+    setTracks((current) => current.filter((item) => item.id !== trackId));
+    if (editingTrackId === trackId) setEditingTrackId(null);
+  };
+
   const updateTrackDescription = (trackId: string, nextDescription: string) => {
+    const track = tracks.find((item) => item.id === trackId);
+    if (!canManageContent(track?.createdBy, user?.name)) return;
     setTracks((current) => current.map((track) => track.id === trackId
       ? { ...track, description: nextDescription }
       : track));
@@ -249,20 +281,40 @@ export default function LessonsPage() {
       <section className="grid gap-4 xl:grid-cols-2">
         {tracks.map((track) => {
           const progress = track.tasks.length ? getProgress(track.tasks) : track.progress;
+          const canManageTrack = canManageContent(track.createdBy, user?.name);
           return (
             <Card key={track.id} className={getAuthorCardClass(track.createdBy)}>
               <CardHeader className="flex flex-row items-center justify-between gap-3 pb-2">
                 <div>
-                  <CardTitle>{track.title}</CardTitle>
+                  {editingTrackId === track.id && canManageTrack ? (
+                    <div className="flex flex-wrap gap-2">
+                      <input value={editedTrackTitle} onChange={(event) => setEditedTrackTitle(event.target.value)} aria-label="Learning track title" className="min-w-0 flex-1 rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-base font-semibold text-[#313B32]" />
+                      <Button type="button" size="sm" onClick={() => handleSaveTrack(track.id)}>Save</Button>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => setEditingTrackId(null)}>Cancel</Button>
+                    </div>
+                  ) : <CardTitle>{track.title}</CardTitle>}
                   <p className="mt-1 text-xs uppercase tracking-[0.12em] text-[#71866E]">{track.owner} · {track.category}</p>
                   <Badge className={`mt-2 ${getAuthorBadgeClass(track.createdBy)}`}>{track.createdBy}</Badge>
                 </div>
-                <Badge>{progress}%</Badge>
+                <div className="flex flex-col items-end gap-2">
+                  <Badge>{progress}%</Badge>
+                  {canManageTrack ? (
+                    <div className="flex">
+                      <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${track.title}`} onClick={() => handleStartTrackEdit(track)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${track.title}`} onClick={() => handleDeleteTrack(track.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <textarea
                   value={track.description}
                   onChange={(event) => updateTrackDescription(track.id, event.target.value)}
+                  readOnly={!canManageTrack}
                   aria-label={`Description for ${track.title}`}
                   rows={3}
                   className="w-full rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] px-3 py-2 text-sm text-[#313B32] outline-none focus:border-[#71866E]"
@@ -280,40 +332,47 @@ export default function LessonsPage() {
                             type="checkbox"
                             checked={task.done}
                             onChange={() => handleToggleTask(track.id, task.id)}
+                            disabled={!canManageTrack}
                             aria-label={`Mark ${task.text} ${task.done ? "incomplete" : "complete"}`}
                             className="mt-1 h-4 w-4 accent-[#71866E]"
                           />
                           <span className={task.done ? "min-w-0 flex-1 text-[#71866E] line-through" : "min-w-0 flex-1 text-[#313B32]"}>{task.text}</span>
                           <Badge className={getAuthorBadgeClass(task.createdBy)}>{task.createdBy}</Badge>
-                          <Button type="button" size="icon" variant="ghost" aria-label={`Delete task ${task.text}`} onClick={() => handleDeleteTask(track.id, task.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {canManageTrack && (
+                            <Button type="button" size="icon" variant="ghost" aria-label={`Delete task ${task.text}`} onClick={() => handleDeleteTask(track.id, task.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </li>
                       ))}
                     </ul>
                   )}
-                  <AddItemDialog
-                    open={addStepTrackId === track.id}
-                    onOpenChange={(open) => setAddStepTrackId(open ? track.id : null)}
-                    title={`Add a learning step`}
-                    description={`Add a checklist item to ${track.title}.`}
-                    triggerLabel="Add a learning step"
-                  >
-                    <form className="space-y-3" onSubmit={(event) => handleAddTask(event, track.id)}>
-                      <input
-                        value={taskDrafts[track.id] ?? ""}
-                        onChange={(event) => setTaskDrafts((current) => ({ ...current, [track.id]: event.target.value }))}
-                        placeholder="Learning step"
-                        aria-label={`Add step to ${track.title}`}
-                        required
-                        className="w-full rounded-2xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm text-[#313B32] outline-none focus:border-[#71866E]"
-                      />
-                      <div className="flex justify-end gap-2">
-                        <Button type="button" variant="ghost" onClick={() => setAddStepTrackId(null)}>Cancel</Button>
-                        <Button type="submit">Add step</Button>
-                      </div>
-                    </form>
-                  </AddItemDialog>
+                  {canManageTrack ? (
+                    <AddItemDialog
+                      open={addStepTrackId === track.id}
+                      onOpenChange={(open) => setAddStepTrackId(open ? track.id : null)}
+                      title="Add a learning step"
+                      description={`Add a checklist item to ${track.title}.`}
+                      triggerLabel="Add a learning step"
+                    >
+                      <form className="space-y-3" onSubmit={(event) => handleAddTask(event, track.id)}>
+                        <input
+                          value={taskDrafts[track.id] ?? ""}
+                          onChange={(event) => setTaskDrafts((current) => ({ ...current, [track.id]: event.target.value }))}
+                          placeholder="Learning step"
+                          aria-label={`Add step to ${track.title}`}
+                          required
+                          className="w-full rounded-2xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm text-[#313B32] outline-none focus:border-[#71866E]"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button type="button" variant="ghost" onClick={() => setAddStepTrackId(null)}>Cancel</Button>
+                          <Button type="submit">Add step</Button>
+                        </div>
+                      </form>
+                    </AddItemDialog>
+                  ) : (
+                    <p className="text-sm text-[#71866E]">Only {track.createdBy} can edit this track or add learning steps.</p>
+                  )}
                   <div className="flex items-center justify-between text-sm text-[#4E5A52]">
                     <span>{track.tasks.filter((task) => task.done).length} of {track.tasks.length} steps completed</span>
                     <span>{progress}% complete</span>

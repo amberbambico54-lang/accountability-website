@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddItemDialog } from "@/components/ui/add-item-dialog";
 import { Progress } from "@/components/ui/progress";
 import { useWorkspacePages } from "@/components/workspace-pages-provider";
-import { getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
+import { canManageContent, getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
 import { useLocalStorageJson } from "@/lib/use-local-storage-json";
 
 type CustomTask = {
@@ -120,6 +120,8 @@ function CustomWorkspacePageEditor({ page }: { page: { id: string; title: string
     event.preventDefault();
     const text = (taskDrafts[topicId] ?? "").trim();
     if (!text || !user) return;
+    const topic = topics.find((item) => item.id === topicId);
+    if (!topic || !canManageContent(topic.createdBy, user.name)) return;
 
     setTopics((current) => current.map((topic) => topic.id === topicId
       ? { ...topic, tasks: [...topic.tasks, { id: createId("task"), text, done: false, createdBy: user.name }] }
@@ -129,23 +131,31 @@ function CustomWorkspacePageEditor({ page }: { page: { id: string; title: string
   };
 
   const handleToggleTask = (topicId: string, taskId: string) => {
+    const topic = topics.find((item) => item.id === topicId);
+    if (!canManageContent(topic?.createdBy, user?.name)) return;
     setTopics((current) => current.map((topic) => topic.id === topicId
       ? { ...topic, tasks: topic.tasks.map((task) => task.id === taskId ? { ...task, done: !task.done } : task) }
       : topic));
   };
 
   const handleDeleteTopic = (topicId: string) => {
+    const topic = topics.find((item) => item.id === topicId);
+    if (!canManageContent(topic?.createdBy, user?.name)) return;
     setTopics((current) => current.filter((topic) => topic.id !== topicId));
     if (editingTopicId === topicId) setEditingTopicId(null);
   };
 
   const handleDeleteTask = (topicId: string, taskId: string) => {
+    const topic = topics.find((item) => item.id === topicId);
+    if (!canManageContent(topic?.createdBy, user?.name)) return;
     setTopics((current) => current.map((topic) => topic.id === topicId
       ? { ...topic, tasks: topic.tasks.filter((task) => task.id !== taskId) }
       : topic));
   };
 
   const handleSaveTopic = (topicId: string) => {
+    const topic = topics.find((item) => item.id === topicId);
+    if (!canManageContent(topic?.createdBy, user?.name)) return;
     const title = editTitle.trim();
     if (!title) return;
     setTopics((current) => current.map((topic) => topic.id === topicId ? { ...topic, title } : topic));
@@ -190,11 +200,12 @@ function CustomWorkspacePageEditor({ page }: { page: { id: string; title: string
         <section className="grid gap-4 xl:grid-cols-2">
           {topics.map((topic) => {
             const progress = getProgress(topic.tasks);
+            const canManageTopic = canManageContent(topic.createdBy, user?.name);
             return (
               <Card key={topic.id} className={`min-w-0 ${getAuthorCardClass(topic.createdBy)}`}>
                 <CardHeader className="flex flex-col gap-3 pb-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 w-full flex-1">
-                    {editingTopicId === topic.id ? (
+                    {editingTopicId === topic.id && canManageTopic ? (
                       <form
                         className="flex flex-wrap gap-2"
                         onSubmit={(event) => {
@@ -217,10 +228,11 @@ function CustomWorkspacePageEditor({ page }: { page: { id: string; title: string
                         <CardTitle>{topic.title}</CardTitle>
                         {topic.description && <p className="mt-1 text-sm text-[#4E5A52]">{topic.description}</p>}
                         <Badge className={`mt-2 ${getAuthorBadgeClass(topic.createdBy)}`}>{topic.createdBy}</Badge>
+                        {!canManageTopic && <p className="mt-1 text-xs text-[#71866E]">Only {topic.createdBy} can edit or delete this topic.</p>}
                       </>
                     )}
                   </div>
-                  {editingTopicId !== topic.id && (
+                  {canManageTopic && editingTopicId !== topic.id && (
                     <div className="flex shrink-0 self-end sm:self-auto">
                       <Button
                         type="button"
@@ -255,19 +267,22 @@ function CustomWorkspacePageEditor({ page }: { page: { id: string; title: string
                               type="checkbox"
                               checked={task.done}
                               onChange={() => handleToggleTask(topic.id, task.id)}
+                              disabled={!canManageTopic}
                               aria-label={`Mark ${task.text} ${task.done ? "incomplete" : "complete"}`}
                               className="mt-1 h-4 w-4 accent-[#71866E]"
                             />
                             <span className={task.done ? "min-w-0 flex-1 basis-[calc(100%-2rem)] text-[#71866E] line-through" : "min-w-0 flex-1 basis-[calc(100%-2rem)] text-[#313B32]"}>{task.text}</span>
                             <Badge className={`shrink-0 ${getAuthorBadgeClass(task.createdBy)}`}>{task.createdBy}</Badge>
-                            <Button type="button" size="icon" variant="ghost" aria-label={`Delete task ${task.text}`} onClick={() => handleDeleteTask(topic.id, task.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {canManageTopic && (
+                              <Button type="button" size="icon" variant="ghost" aria-label={`Delete task ${task.text}`} onClick={() => handleDeleteTask(topic.id, task.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </li>
                         ))}
                       </ul>
                     )}
-                    <AddItemDialog
+                    {canManageTopic ? <AddItemDialog
                       open={addTaskTopicId === topic.id}
                       onOpenChange={(open) => setAddTaskTopicId(open ? topic.id : null)}
                       title="Add checklist task"
@@ -288,7 +303,7 @@ function CustomWorkspacePageEditor({ page }: { page: { id: string; title: string
                           <Button type="submit"><Plus className="h-4 w-4" /> Add task</Button>
                         </div>
                       </form>
-                    </AddItemDialog>
+                    </AddItemDialog> : <p className="text-sm text-[#71866E]">Only {topic.createdBy} can edit this topic or manage its tasks.</p>}
                   </div>
                 </CardContent>
               </Card>

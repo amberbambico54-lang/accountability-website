@@ -10,7 +10,7 @@ import { AddItemDialog } from "@/components/ui/add-item-dialog";
 import { Progress } from "@/components/ui/progress";
 import { annualGoals } from "@/lib/content";
 import { useAuth } from "@/components/auth-provider";
-import { getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
+import { canManageContent, getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
 import { useLocalStorageJson } from "@/lib/use-local-storage-json";
 
 const storageKey = "our-space-annual-goals";
@@ -166,7 +166,7 @@ export default function GoalsPage() {
     if (!user) return;
 
     const goal = goals.find((item) => item.id === goalId);
-    if (!goal) return;
+    if (!goal || !canManageContent(goal.createdBy, user.name)) return;
 
     const checklistId = createUniqueId(`${goalId}-checklist`, goal.checklists.map((checklist) => checklist.id));
     setGoals((current) => current.map((goal) => goal.id === goalId
@@ -183,7 +183,7 @@ export default function GoalsPage() {
 
     const goal = goals.find((item) => item.id === goalId);
     const checklist = goal?.checklists.find((item) => item.id === checklistId);
-    if (!checklist) return;
+    if (!checklist || !canManageContent(goal?.createdBy, user.name)) return;
 
     const taskId = createUniqueId(`${checklistId}-task`, checklist.tasks.map((task) => task.id));
     setGoals((current) => current.map((goal) => goal.id === goalId
@@ -199,6 +199,8 @@ export default function GoalsPage() {
   };
 
   const handleTaskToggle = (goalId: string, checklistId: string, taskId: string) => {
+    const goal = goals.find((item) => item.id === goalId);
+    if (!canManageContent(goal?.createdBy, user?.name)) return;
     setGoals((current) => current.map((goal) => goal.id === goalId
       ? {
           ...goal,
@@ -210,11 +212,14 @@ export default function GoalsPage() {
   };
 
   const handleStartGoalEdit = (goal: GoalItem) => {
+    if (!canManageContent(goal.createdBy, user?.name)) return;
     setEditingGoalId(goal.id);
     setGoalEdit({ title: goal.title, category: goal.category, description: goal.description });
   };
 
   const handleSaveGoalEdit = (goalId: string) => {
+    const goal = goals.find((item) => item.id === goalId);
+    if (!canManageContent(goal?.createdBy, user?.name)) return;
     if (!goalEdit.title.trim()) return;
 
     setGoals((current) => current.map((goal) => goal.id === goalId
@@ -229,16 +234,22 @@ export default function GoalsPage() {
   };
 
   const handleDeleteGoal = (goalId: string) => {
+    const goal = goals.find((item) => item.id === goalId);
+    if (!canManageContent(goal?.createdBy, user?.name)) return;
     setGoals((current) => current.filter((goal) => goal.id !== goalId));
     if (editingGoalId === goalId) setEditingGoalId(null);
   };
 
   const handleStartChecklistEdit = (checklist: GoalChecklist) => {
+    const goal = goals.find((item) => item.checklists.some((entry) => entry.id === checklist.id));
+    if (!canManageContent(goal?.createdBy, user?.name)) return;
     setEditingChecklistId(checklist.id);
     setChecklistEditTitle(checklist.title);
   };
 
   const handleSaveChecklistEdit = (goalId: string, checklistId: string) => {
+    const goal = goals.find((item) => item.id === goalId);
+    if (!canManageContent(goal?.createdBy, user?.name)) return;
     if (!checklistEditTitle.trim()) return;
 
     setGoals((current) => current.map((goal) => goal.id === goalId
@@ -253,6 +264,8 @@ export default function GoalsPage() {
   };
 
   const handleDeleteChecklist = (goalId: string, checklistId: string) => {
+    const goal = goals.find((item) => item.id === goalId);
+    if (!canManageContent(goal?.createdBy, user?.name)) return;
     setGoals((current) => current.map((goal) => goal.id === goalId
       ? { ...goal, checklists: goal.checklists.filter((checklist) => checklist.id !== checklistId) }
       : goal));
@@ -260,11 +273,15 @@ export default function GoalsPage() {
   };
 
   const handleStartTaskEdit = (task: GoalTask) => {
+    const goal = goals.find((item) => getAllTasks(item).some((entry) => entry.id === task.id));
+    if (!canManageContent(goal?.createdBy, user?.name)) return;
     setEditingTaskId(task.id);
     setTaskEditText(task.text);
   };
 
   const handleSaveTaskEdit = (goalId: string, checklistId: string, taskId: string) => {
+    const goal = goals.find((item) => item.id === goalId);
+    if (!canManageContent(goal?.createdBy, user?.name)) return;
     if (!taskEditText.trim()) return;
 
     setGoals((current) => current.map((goal) => goal.id === goalId
@@ -284,6 +301,8 @@ export default function GoalsPage() {
   };
 
   const handleDeleteTask = (goalId: string, checklistId: string, taskId: string) => {
+    const goal = goals.find((item) => item.id === goalId);
+    if (!canManageContent(goal?.createdBy, user?.name)) return;
     setGoals((current) => current.map((goal) => goal.id === goalId
       ? {
           ...goal,
@@ -371,12 +390,13 @@ export default function GoalsPage() {
         {goals.map((goal) => {
           const progress = getProgress(goal);
           const taskCount = getAllTasks(goal).length;
+          const canManageGoal = canManageContent(goal.createdBy, user?.name);
 
           return (
             <Card key={goal.id} className={`min-w-0 ${getAuthorCardClass(goal.createdBy)}`}>
               <CardHeader className="flex flex-col gap-3 pb-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0 w-full flex-1">
-                  {editingGoalId === goal.id ? (
+                  {editingGoalId === goal.id && canManageGoal ? (
                     <div className="space-y-2">
                       <input
                         value={goalEdit.title}
@@ -421,19 +441,22 @@ export default function GoalsPage() {
                 </div>
                 <div className="flex w-full shrink-0 items-center justify-between gap-2 sm:w-auto sm:flex-col sm:items-end">
                   <Badge>{progress}%</Badge>
-                  <div className="flex">
-                    <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${goal.title}`} onClick={() => handleStartGoalEdit(goal)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${goal.title}`} onClick={() => handleDeleteGoal(goal.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {canManageGoal && (
+                    <div className="flex">
+                      <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${goal.title}`} onClick={() => handleStartGoalEdit(goal)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${goal.title}`} onClick={() => handleDeleteGoal(goal.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Progress value={progress} />
-                {editingGoalId !== goal.id && <p className="text-sm leading-6 text-[#4E5A52]">{goal.description}</p>}
+                {!(editingGoalId === goal.id && canManageGoal) && <p className="text-sm leading-6 text-[#4E5A52]">{goal.description}</p>}
+                {!canManageGoal && <p className="text-xs text-[#71866E]">Only {goal.createdBy} can edit or delete this goal.</p>}
                 <div className="space-y-3 rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] p-4">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[11px] uppercase tracking-[0.14em] text-[#71866E]">Checklists</p>
@@ -447,7 +470,7 @@ export default function GoalsPage() {
                   {goal.checklists.map((checklist) => (
                     <div key={checklist.id} className="rounded-2xl border border-[#E7E0D2] bg-white/70 p-3">
                       <div className="flex items-center justify-between gap-2">
-                        {editingChecklistId === checklist.id ? (
+                        {editingChecklistId === checklist.id && canManageGoal ? (
                           <div className="flex min-w-0 flex-1 flex-wrap gap-2">
                             <input
                               value={checklistEditTitle}
@@ -464,14 +487,14 @@ export default function GoalsPage() {
                               <p className="font-medium text-[#313B32]">{checklist.title}</p>
                               <Badge className={`mt-1 ${getAuthorBadgeClass(checklist.createdBy)}`}>{checklist.createdBy}</Badge>
                             </div>
-                            <div className="flex shrink-0">
+                            {canManageGoal && <div className="flex shrink-0">
                               <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${checklist.title}`} onClick={() => handleStartChecklistEdit(checklist)}>
                                 <Pencil className="h-4 w-4" />
                               </Button>
                               <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${checklist.title}`} onClick={() => handleDeleteChecklist(goal.id, checklist.id)}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
-                            </div>
+                            </div>}
                           </>
                         )}
                       </div>
@@ -485,9 +508,10 @@ export default function GoalsPage() {
                                 type="checkbox"
                                 checked={task.done}
                                 onChange={() => handleTaskToggle(goal.id, checklist.id, task.id)}
+                                disabled={!canManageGoal}
                                 className="mt-1 h-4 w-4 accent-[#71866E]"
                               />
-                              {editingTaskId === task.id ? (
+                              {editingTaskId === task.id && canManageGoal ? (
                                 <div className="flex min-w-0 flex-1 flex-wrap gap-2">
                                   <input
                                     value={taskEditText}
@@ -502,21 +526,21 @@ export default function GoalsPage() {
                                 <>
                                   <span className={`min-w-0 flex-1 basis-[calc(100%-2rem)] ${task.done ? "text-[#71866E] line-through" : "text-[#313B32]"}`}>{task.text}</span>
                                   <Badge className={`shrink-0 ${getAuthorBadgeClass(task.createdBy)}`}>{task.createdBy}</Badge>
-                                  <div className="flex shrink-0">
+                                  {canManageGoal && <div className="flex shrink-0">
                                     <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${task.text}`} onClick={() => handleStartTaskEdit(task)}>
                                       <Pencil className="h-4 w-4" />
                                     </Button>
                                     <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${task.text}`} onClick={() => handleDeleteTask(goal.id, checklist.id, task.id)}>
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
-                                  </div>
+                                  </div>}
                                 </>
                               )}
                             </li>
                           ))}
                         </ul>
                       )}
-                      <div className="mt-3">
+                      {canManageGoal && <div className="mt-3">
                         <AddItemDialog
                           open={addTaskChecklistId === checklist.id}
                           onOpenChange={(open) => setAddTaskChecklistId(open ? checklist.id : null)}
@@ -545,11 +569,11 @@ export default function GoalsPage() {
                             </div>
                           </form>
                         </AddItemDialog>
-                      </div>
+                      </div>}
                     </div>
                   ))}
 
-                  <div>
+                  {canManageGoal ? <div>
                     <AddItemDialog
                       open={addChecklistGoalId === goal.id}
                       onOpenChange={(open) => setAddChecklistGoalId(open ? goal.id : null)}
@@ -578,7 +602,7 @@ export default function GoalsPage() {
                         </div>
                       </form>
                     </AddItemDialog>
-                  </div>
+                  </div> : <p className="text-sm text-[#71866E]">Only {goal.createdBy} can edit this goal or manage its checklists.</p>}
                 </div>
               </CardContent>
             </Card>

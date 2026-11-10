@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import type { ComponentProps } from "react";
 import { useEffect, useState } from "react";
 import {
   ArrowUpRight,
@@ -43,6 +44,23 @@ const quickLinks = [
   { title: "Progress check", href: "/business", icon: Compass },
   { title: "Family plans", href: "/marriage", icon: Users },
 ];
+
+function AppNavLink({ href, children, ...props }: ComponentProps<typeof Link>) {
+  const [prefetchOnIntent, setPrefetchOnIntent] = useState(false);
+
+  return (
+    <Link
+      href={href}
+      {...props}
+      prefetch={prefetchOnIntent ? null : false}
+      onMouseEnter={() => setPrefetchOnIntent(true)}
+      onFocus={() => setPrefetchOnIntent(true)}
+      onTouchStart={() => setPrefetchOnIntent(true)}
+    >
+      {children}
+    </Link>
+  );
+}
 
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
@@ -126,7 +144,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               const Icon = item.icon;
               const active = pathname === item.href;
               return (
-                <Link
+                <AppNavLink
                   key={item.title}
                   href={item.href}
                   className={cn(
@@ -138,7 +156,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                 >
                   <Icon className="h-4 w-4" />
                   <span className="min-w-0 break-words">{item.title}</span>
-                </Link>
+                </AppNavLink>
               );
             })}
           </nav>
@@ -182,14 +200,14 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                 {quickLinks.slice(0, 2).map((item) => {
                   const Icon = item.icon;
                   return (
-                    <Link
+                    <AppNavLink
                       key={item.title}
                       href={item.href}
                       className="hidden items-center gap-2 rounded-full border border-[#E7E0D2] bg-white/80 px-3 py-1.5 text-xs text-[#313B32] sm:inline-flex"
                     >
                       <Icon className="h-3.5 w-3.5" />
                       {item.title}
-                    </Link>
+                    </AppNavLink>
                   );
                 })}
                 <button type="button" onClick={handleSignOut} className="inline-flex items-center gap-2 rounded-full bg-[#313B32] px-3 py-1.5 text-xs text-[#F7F4ED]">
@@ -205,7 +223,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                 {navItems.map((item) => {
                   const Icon = item.icon;
                   return (
-                    <Link
+                    <AppNavLink
                       key={item.title}
                       href={item.href}
                       className={cn(
@@ -216,7 +234,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                     >
                       <Icon className="h-4 w-4 shrink-0" />
                       <span className="min-w-0 break-words">{item.title}</span>
-                    </Link>
+                    </AppNavLink>
                   );
                 })}
               </div>
@@ -247,7 +265,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             const Icon = item.icon;
             const active = pathname === item.href;
             return (
-              <Link
+              <AppNavLink
                 key={item.title}
                 href={item.href}
                 className={cn(
@@ -257,7 +275,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               >
                 <Icon className="h-4 w-4" />
                 <span className="leading-none">{item.title.split(" ")[0]}</span>
-              </Link>
+              </AppNavLink>
             );
           })}
         </div>

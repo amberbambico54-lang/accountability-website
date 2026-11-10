@@ -11,7 +11,7 @@ import { AddItemDialog } from "@/components/ui/add-item-dialog";
 import { budgetTransactions } from "@/lib/content";
 import { formatMoney } from "@/lib/utils";
 import { useAuth } from "@/components/auth-provider";
-import { getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
+import { canManageContent, getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
 import { useWorkspacePages } from "@/components/workspace-pages-provider";
 import { useLocalStorageJson } from "@/lib/use-local-storage-json";
 
@@ -127,6 +127,8 @@ export default function BudgetPage() {
 
   const history = getSavingsHistory(transactions);
   const handleSaveEdit = (entryId: string) => {
+    const entry = transactions.find((item) => item.id === entryId);
+    if (!canManageContent(entry?.createdBy, user?.name)) return;
     const parsedAmount = Number(editDraft.amount);
     if (!editDraft.description.trim() || !Number.isFinite(parsedAmount) || parsedAmount <= 0) return;
     setTransactions((current) => current.map((entry) => entry.id === entryId
@@ -235,9 +237,11 @@ export default function BudgetPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {transactions.length === 0 && <p className="text-sm text-[#4E5A52]">No transactions yet. Add one to start tracking savings.</p>}
-            {transactions.map((entry) => (
+            {transactions.map((entry) => {
+              const canManageEntry = canManageContent(entry.createdBy, user?.name);
+              return (
               <div key={entry.id} className={`rounded-2xl border border-[#E7E0D2] p-3 ${getAuthorCardClass(entry.createdBy)}`}>
-                {editingId === entry.id ? (
+                {editingId === entry.id && canManageEntry ? (
                   <div className="space-y-2">
                     <input value={editDraft.description} onChange={(event) => setEditDraft({ ...editDraft, description: event.target.value })} aria-label="Edit transaction description" className="w-full rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm" />
                     <div className="flex gap-2">
@@ -261,17 +265,22 @@ export default function BudgetPage() {
                       <Badge className={getAuthorBadgeClass(entry.createdBy)}>{entry.createdBy}</Badge>
                       <span>{formatMoney(entry.amount)}</span>
                     </div>
-                    <div className="mt-2 flex justify-end">
+                    {canManageEntry ? <div className="mt-2 flex items-center justify-between">
+                      <span className="text-xs text-[#71866E]">Only you can edit this transaction.</span>
                       <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${entry.description}`} onClick={() => {
                         setEditingId(entry.id);
                         setEditDraft({ description: entry.description, type: entry.type, amount: String(entry.amount) });
                       }}><Pencil className="h-4 w-4" /></Button>
-                      <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${entry.description}`} onClick={() => setTransactions((current) => current.filter((item) => item.id !== entry.id))}><Trash2 className="h-4 w-4" /></Button>
-                    </div>
+                      <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${entry.description}`} onClick={() => {
+                        if (!canManageContent(entry.createdBy, user?.name)) return;
+                        setTransactions((current) => current.filter((item) => item.id !== entry.id));
+                      }}><Trash2 className="h-4 w-4" /></Button>
+                    </div> : <p className="mt-2 text-xs text-[#71866E]">Added by {entry.createdBy}. Only they can edit or delete it.</p>}
                   </>
                 )}
               </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       </section>

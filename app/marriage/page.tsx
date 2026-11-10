@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { marriageSections } from "@/lib/content";
-import { getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
+import { canManageContent, getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
 import { useLocalStorageJson } from "@/lib/use-local-storage-json";
 
 type MarriageSection = {
@@ -68,11 +68,25 @@ export default function MarriagePage() {
   };
 
   const handleSave = (id: string) => {
+    const section = sections.find((item) => item.id === id);
+    if (!canManageContent(section?.createdBy, user?.name)) return;
     if (!editDraft.title.trim() || !editDraft.summary.trim()) return;
     setSections((current) => current.map((section) => section.id === id
       ? { ...section, title: editDraft.title.trim(), summary: editDraft.summary.trim() }
       : section));
     setEditingId(null);
+  };
+
+  const handleStartEdit = (section: MarriageSection) => {
+    if (!canManageContent(section.createdBy, user?.name)) return;
+    setEditingId(section.id);
+    setEditDraft({ title: section.title, summary: section.summary });
+  };
+
+  const handleDelete = (id: string) => {
+    const section = sections.find((item) => item.id === id);
+    if (!canManageContent(section?.createdBy, user?.name)) return;
+    setSections((current) => current.filter((item) => item.id !== id));
   };
 
   return (
@@ -96,20 +110,19 @@ export default function MarriagePage() {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {sections.length === 0 && <Card><CardContent className="py-6 text-sm text-[#4E5A52]">No marriage plan topics yet. Add one to start planning.</CardContent></Card>}
-        {sections.map((section) => (
+        {sections.map((section) => {
+          const canManageSection = canManageContent(section.createdBy, user?.name);
+          return (
           <Card key={section.id} className={`min-w-0 ${getAuthorCardClass(section.createdBy)}`}>
             <CardHeader className="flex flex-col gap-2">
               <CardTitle className="min-w-0 break-words"><HeartHandshake className="h-4 w-4 shrink-0" />{section.title}</CardTitle>
-              <div className="flex shrink-0 self-end">
-                <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${section.title}`} onClick={() => {
-                  setEditingId(section.id);
-                  setEditDraft({ title: section.title, summary: section.summary });
-                }}><Pencil className="h-4 w-4" /></Button>
-                <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${section.title}`} onClick={() => setSections((current) => current.filter((item) => item.id !== section.id))}><Trash2 className="h-4 w-4" /></Button>
-              </div>
+              {canManageSection && <div className="flex shrink-0 self-end">
+                <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${section.title}`} onClick={() => handleStartEdit(section)}><Pencil className="h-4 w-4" /></Button>
+                <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${section.title}`} onClick={() => handleDelete(section.id)}><Trash2 className="h-4 w-4" /></Button>
+              </div>}
             </CardHeader>
             <CardContent>
-              {editingId === section.id ? (
+              {editingId === section.id && canManageSection ? (
                 <div className="space-y-2">
                   <input value={editDraft.title} onChange={(event) => setEditDraft({ ...editDraft, title: event.target.value })} aria-label="Edit topic title" className="w-full rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm" />
                   <textarea value={editDraft.summary} onChange={(event) => setEditDraft({ ...editDraft, summary: event.target.value })} aria-label="Edit topic details" rows={4} className="w-full rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm" />
@@ -119,11 +132,13 @@ export default function MarriagePage() {
                 <>
                   <p className="text-sm leading-6 text-[#4E5A52]">{section.summary}</p>
                   <Badge className={`mt-3 ${getAuthorBadgeClass(section.createdBy)}`}>{section.createdBy}</Badge>
+                  {!canManageSection && <p className="mt-2 text-xs text-[#71866E]">Only {section.createdBy} can edit or delete this topic.</p>}
                 </>
               )}
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </section>
     </div>
   );

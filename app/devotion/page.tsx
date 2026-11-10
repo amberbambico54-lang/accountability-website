@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddItemDialog } from "@/components/ui/add-item-dialog";
 import { devotionEntries } from "@/lib/content";
 import { useAuth } from "@/components/auth-provider";
-import { getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
+import { canManageContent, getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
 import { useLocalStorageJson } from "@/lib/use-local-storage-json";
 
 const storageKey = "our-space-devotion-entries";
@@ -82,6 +82,7 @@ export default function DevotionPage() {
   };
 
   const handleSaveEntry = () => {
+    if (!canManageContent(entryEdit?.owner, user?.name)) return;
     if (!entryEdit?.title.trim() || !entryEdit.reflection.trim()) return;
     setEntries((current) => current.map((entry) => entry.id === entryEdit.id ? entryEdit : entry));
     setEditingEntryId(null);
@@ -169,13 +170,17 @@ export default function DevotionPage() {
                 <div className="flex flex-col items-end gap-2">
                   <Badge>{entry.verse}</Badge>
                   <Badge className={getAuthorBadgeClass(entry.owner)}>{entry.owner}</Badge>
+                  {!canManageContent(entry.owner, user?.name) && <p className="text-xs text-[#71866E]">Only {entry.owner} can edit or delete this reflection.</p>}
                   {entry.owner === user?.name && (
                     <div className="flex">
                       <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${entry.title}`} onClick={() => {
                         setEditingEntryId(entry.id);
                         setEntryEdit({ ...entry });
                       }}><Pencil className="h-4 w-4" /></Button>
-                      <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${entry.title}`} onClick={() => setEntries((current) => current.filter((item) => item.id !== entry.id))}><Trash2 className="h-4 w-4" /></Button>
+                      <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${entry.title}`} onClick={() => {
+                        if (!canManageContent(entry.owner, user?.name)) return;
+                        setEntries((current) => current.filter((item) => item.id !== entry.id));
+                      }}><Trash2 className="h-4 w-4" /></Button>
                     </div>
                   )}
                 </div>

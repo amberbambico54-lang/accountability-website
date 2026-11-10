@@ -15,6 +15,10 @@ export function getAppUser(email: string | undefined | null): AppUser | null {
   return name ? { name, email: normalizedEmail } : null;
 }
 
+export function canManageContent(createdBy: string | undefined, userName: string | undefined): boolean {
+  return Boolean(userName && createdBy === userName);
+}
+
 export function getAuthorCardClass(author: string | undefined) {
   if (author === "Alpha") return "border-l-4 border-l-[#8B6AA8] bg-[#F5EFFA]";
   if (author === "Fernan") return "border-l-4 border-l-[#5F8F6B] bg-[#EFF6F0]";

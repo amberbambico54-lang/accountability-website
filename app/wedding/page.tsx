@@ -11,7 +11,7 @@ import { AddItemDialog } from "@/components/ui/add-item-dialog";
 import { Progress } from "@/components/ui/progress";
 import { weddingMoodBoard, weddingProjects, wishListItems } from "@/lib/content";
 import { useAuth } from "@/components/auth-provider";
-import { getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
+import { canManageContent, getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
 import { useWorkspacePages } from "@/components/workspace-pages-provider";
 import { useLocalStorageJson } from "@/lib/use-local-storage-json";
 import { prepareImageForStorage } from "@/lib/image-upload";
@@ -202,6 +202,7 @@ export default function WeddingPage() {
   };
 
   const handleStartMoodEdit = (item: MoodBoardItem) => {
+    if (!canManageContent(item.createdBy, user?.name)) return;
     setEditingMoodId(item.id);
     setMoodEdit({ title: item.title, note: item.note, image: item.image });
   };
@@ -220,6 +221,8 @@ export default function WeddingPage() {
   };
 
   const handleSaveMoodEdit = (itemId: string) => {
+    const item = board.find((mood) => mood.id === itemId);
+    if (!canManageContent(item?.createdBy, user?.name)) return;
     if (!moodEdit.title.trim()) return;
 
     setBoard((current) => current.map((item) => item.id === itemId
@@ -229,6 +232,8 @@ export default function WeddingPage() {
   };
 
   const handleDeleteMood = (itemId: string) => {
+    const item = board.find((mood) => mood.id === itemId);
+    if (!canManageContent(item?.createdBy, user?.name)) return;
     setBoard((current) => current.filter((item) => item.id !== itemId));
     if (editingMoodId === itemId) setEditingMoodId(null);
   };
@@ -257,7 +262,7 @@ export default function WeddingPage() {
     if (!user) return;
 
     const project = projects.find((item) => item.id === projectId);
-    if (!project) return;
+    if (!project || !canManageContent(project.createdBy, user.name)) return;
     const taskId = createUniqueId(`${projectId}-task`, project.tasks.map((task) => task.id));
 
     setProjects((current) => current.map((project) => project.id === projectId
@@ -268,17 +273,22 @@ export default function WeddingPage() {
   };
 
   const handleTaskToggle = (projectId: string, taskId: string) => {
+    const project = projects.find((item) => item.id === projectId);
+    if (!canManageContent(project?.createdBy, user?.name)) return;
     setProjects((current) => current.map((project) => project.id === projectId
       ? { ...project, tasks: project.tasks.map((task) => task.id === taskId ? { ...task, done: !task.done } : task) }
       : project));
   };
 
   const handleStartProjectEdit = (project: WeddingProject) => {
+    if (!canManageContent(project.createdBy, user?.name)) return;
     setEditingProjectId(project.id);
     setProjectEdit({ title: project.title, due: project.due });
   };
 
   const handleSaveProjectEdit = (projectId: string) => {
+    const project = projects.find((item) => item.id === projectId);
+    if (!canManageContent(project?.createdBy, user?.name)) return;
     if (!projectEdit.title.trim()) return;
 
     setProjects((current) => current.map((project) => project.id === projectId
@@ -288,16 +298,22 @@ export default function WeddingPage() {
   };
 
   const handleDeleteProject = (projectId: string) => {
+    const project = projects.find((item) => item.id === projectId);
+    if (!canManageContent(project?.createdBy, user?.name)) return;
     setProjects((current) => current.filter((project) => project.id !== projectId));
     if (editingProjectId === projectId) setEditingProjectId(null);
   };
 
-  const handleStartTaskEdit = (task: WeddingTask) => {
+  const handleStartTaskEdit = (projectId: string, task: WeddingTask) => {
+    const project = projects.find((item) => item.id === projectId);
+    if (!canManageContent(project?.createdBy, user?.name)) return;
     setEditingTaskId(task.id);
     setTaskEditText(task.text);
   };
 
   const handleSaveTaskEdit = (projectId: string, taskId: string) => {
+    const project = projects.find((item) => item.id === projectId);
+    if (!canManageContent(project?.createdBy, user?.name)) return;
     if (!taskEditText.trim()) return;
 
     setProjects((current) => current.map((project) => project.id === projectId
@@ -310,6 +326,8 @@ export default function WeddingPage() {
   };
 
   const handleDeleteTask = (projectId: string, taskId: string) => {
+    const project = projects.find((item) => item.id === projectId);
+    if (!canManageContent(project?.createdBy, user?.name)) return;
     setProjects((current) => current.map((project) => project.id === projectId
       ? { ...project, tasks: project.tasks.filter((task) => task.id !== taskId) }
       : project));
@@ -334,6 +352,8 @@ export default function WeddingPage() {
   };
 
   const handleSaveWish = (wishId: string) => {
+    const wish = wishList.find((item) => item.id === wishId);
+    if (!canManageContent(wish?.createdBy, user?.name)) return;
     const name = wishEdit.name.trim();
     const cost = Number(wishEdit.cost || 0);
     if (!name || !Number.isFinite(cost) || cost < 0) return;
@@ -435,12 +455,13 @@ export default function WeddingPage() {
         <div className="grid gap-4 xl:grid-cols-2">
           {projects.map((project) => {
             const progress = getProgress(project.tasks);
+            const canManageProject = canManageContent(project.createdBy, user?.name);
 
             return (
               <Card key={project.id} className={`min-w-0 ${getAuthorCardClass(project.createdBy)}`}>
                 <CardHeader className="flex flex-col gap-3 pb-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 w-full flex-1">
-                    {editingProjectId === project.id ? (
+                    {editingProjectId === project.id && canManageProject ? (
                       <div className="space-y-2">
                         <input
                           value={projectEdit.title}
@@ -469,14 +490,16 @@ export default function WeddingPage() {
                   </div>
                   <div className="flex w-full shrink-0 items-center justify-between gap-2 sm:w-auto sm:flex-col sm:items-end">
                     <Badge>{progress}%</Badge>
-                    <div className="flex">
-                      <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${project.title}`} onClick={() => handleStartProjectEdit(project)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${project.title}`} onClick={() => handleDeleteProject(project.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    {canManageProject && (
+                      <div className="flex">
+                        <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${project.title}`} onClick={() => handleStartProjectEdit(project)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${project.title}`} onClick={() => handleDeleteProject(project.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -493,9 +516,10 @@ export default function WeddingPage() {
                               type="checkbox"
                               checked={task.done}
                               onChange={() => handleTaskToggle(project.id, task.id)}
+                              disabled={!canManageProject}
                               className="mt-1 h-4 w-4 accent-[#71866E]"
                             />
-                            {editingTaskId === task.id ? (
+                            {editingTaskId === task.id && canManageProject ? (
                               <div className="flex min-w-0 flex-1 flex-wrap gap-2">
                                 <input
                                   value={taskEditText}
@@ -510,21 +534,21 @@ export default function WeddingPage() {
                               <>
                                 <span className={`min-w-0 flex-1 basis-[calc(100%-2rem)] ${task.done ? "text-[#71866E] line-through" : "text-[#313B32]"}`}>{task.text}</span>
                                 <Badge className={`shrink-0 ${getAuthorBadgeClass(task.createdBy)}`}>{task.createdBy}</Badge>
-                                <div className="flex shrink-0">
-                                  <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${task.text}`} onClick={() => handleStartTaskEdit(task)}>
+                                {canManageProject && <div className="flex shrink-0">
+                                  <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${task.text}`} onClick={() => handleStartTaskEdit(project.id, task)}>
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${task.text}`} onClick={() => handleDeleteTask(project.id, task.id)}>
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
-                                </div>
+                                </div>}
                               </>
                             )}
                           </li>
                         ))}
                       </ul>
                     )}
-                    <div className="mt-3">
+                    {canManageProject ? <div className="mt-3">
                       <AddItemDialog
                         open={addTaskProjectId === project.id}
                         onOpenChange={(open) => setAddTaskProjectId(open ? project.id : null)}
@@ -553,7 +577,7 @@ export default function WeddingPage() {
                           </div>
                         </form>
                       </AddItemDialog>
-                    </div>
+                    </div> : <p className="mt-3 text-sm text-[#71866E]">Only {project.createdBy} can edit this plan or manage its tasks.</p>}
                   </div>
                 </CardContent>
               </Card>
@@ -571,7 +595,7 @@ export default function WeddingPage() {
             <div className="grid gap-3 sm:grid-cols-2">
               {board.map((item) => (
                 <div key={item.id} className={`overflow-hidden rounded-3xl border border-[#E7E0D2] ${getAuthorCardClass(item.createdBy)}`}>
-                  {editingMoodId === item.id ? (
+                  {editingMoodId === item.id && canManageContent(item.createdBy, user?.name) ? (
                     <div className="space-y-3 p-3">
                       {moodEdit.image && (
                         <Image unoptimized src={moodEdit.image} alt={moodEdit.title || "Preview"} width={800} height={512} className="h-52 w-full rounded-2xl object-cover" />
@@ -617,15 +641,18 @@ export default function WeddingPage() {
                           <p className="font-medium text-[#313B32]">{item.title}</p>
                           <p className="mt-1 text-sm text-[#4E5A52]">{item.note}</p>
                           <Badge className={`mt-2 ${getAuthorBadgeClass(item.createdBy)}`}>{item.createdBy}</Badge>
+                          {!canManageContent(item.createdBy, user?.name) && <p className="mt-1 text-xs text-[#71866E]">Only {item.createdBy} can edit or delete this inspiration.</p>}
                         </div>
-                        <div className="flex shrink-0">
-                          <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${item.title}`} onClick={() => handleStartMoodEdit(item)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${item.title}`} onClick={() => handleDeleteMood(item.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        {canManageContent(item.createdBy, user?.name) && (
+                          <div className="flex shrink-0">
+                            <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${item.title}`} onClick={() => handleStartMoodEdit(item)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${item.title}`} onClick={() => handleDeleteMood(item.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </>
                   )}
@@ -654,7 +681,7 @@ export default function WeddingPage() {
             {wishList.length === 0 && <p className="text-sm text-[#4E5A52]">No wishes have been added yet.</p>}
             {wishList.map((item) => (
               <div key={item.id} className={`rounded-2xl border border-[#E7E0D2] p-3 ${getAuthorCardClass(item.createdBy)}`}>
-                {editingWishId === item.id ? (
+                {editingWishId === item.id && canManageContent(item.createdBy, user?.name) ? (
                   <div className="space-y-2">
                     <input value={wishEdit.name} onChange={(event) => setWishEdit({ ...wishEdit, name: event.target.value })} aria-label="Edit wish name" className="w-full rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm" />
                     <input type="number" min="0" step="0.01" value={wishEdit.cost} onChange={(event) => setWishEdit({ ...wishEdit, cost: event.target.value })} aria-label="Edit wish cost" className="w-full rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm" />
@@ -674,13 +701,19 @@ export default function WeddingPage() {
                     <p className="mt-1 text-sm text-[#4E5A52]">Estimated cost: {item.cost ? `₱${item.cost.toLocaleString()}` : "Not set yet"}</p>
                     <div className="mt-2 flex items-center justify-between">
                       <Badge className={getAuthorBadgeClass(item.createdBy)}>{item.createdBy}</Badge>
-                      <div className="flex">
-                        <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${item.name}`} onClick={() => {
-                          setEditingWishId(item.id);
-                          setWishEdit({ name: item.name, cost: String(item.cost || ""), priority: item.priority, status: item.status });
-                        }}><Pencil className="h-4 w-4" /></Button>
-                        <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${item.name}`} onClick={() => setWishList((current) => current.filter((wish) => wish.id !== item.id))}><Trash2 className="h-4 w-4" /></Button>
-                      </div>
+                      {!canManageContent(item.createdBy, user?.name) && <span className="text-xs text-[#71866E]">Only {item.createdBy} can edit or delete this wish.</span>}
+                      {canManageContent(item.createdBy, user?.name) && (
+                        <div className="flex">
+                          <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${item.name}`} onClick={() => {
+                            setEditingWishId(item.id);
+                            setWishEdit({ name: item.name, cost: String(item.cost || ""), priority: item.priority, status: item.status });
+                          }}><Pencil className="h-4 w-4" /></Button>
+                          <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${item.name}`} onClick={() => {
+                            if (!canManageContent(item.createdBy, user?.name)) return;
+                            setWishList((current) => current.filter((wish) => wish.id !== item.id));
+                          }}><Trash2 className="h-4 w-4" /></Button>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
