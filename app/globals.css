@@ -7,6 +7,10 @@
   --sage: #a4b49b;
   --beige: #e7e0d2;
   --ivory: #f7f4ed;
+  --author-fernan-color: #5f8f6b;
+  --author-fernan-marker: color-mix(in srgb, var(--author-fernan-color) 45%, #313b32);
+  --author-alpha-color: #8b6aa8;
+  --author-alpha-marker: color-mix(in srgb, var(--author-alpha-color) 45%, #313b32);
 }
 
 @theme inline {
@@ -32,6 +36,38 @@ body {
     linear-gradient(180deg, #f7f4ed 0%, #f5f1ea 100%);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.author-card--fernan {
+  border-left: 4px solid var(--author-fernan-marker);
+  background-color: color-mix(in srgb, var(--author-fernan-color) 10%, white);
+}
+
+.author-card--alpha {
+  border-left: 4px solid var(--author-alpha-marker);
+  background-color: color-mix(in srgb, var(--author-alpha-color) 10%, white);
+}
+
+.author-badge--fernan {
+  border-color: var(--author-fernan-marker);
+  background-color: color-mix(in srgb, var(--author-fernan-color) 16%, white);
+  color: #313b32;
+}
+
+.author-badge--alpha {
+  border-color: var(--author-alpha-marker);
+  background-color: color-mix(in srgb, var(--author-alpha-color) 16%, white);
+  color: #313b32;
+}
+
+.author-swatch--fernan {
+  border-left: 4px solid var(--author-fernan-marker);
+  background-color: color-mix(in srgb, var(--author-fernan-color) 10%, white);
+}
+
+.author-swatch--alpha {
+  border-left: 4px solid var(--author-alpha-marker);
+  background-color: color-mix(in srgb, var(--author-alpha-color) 10%, white);
 }
 
 a {

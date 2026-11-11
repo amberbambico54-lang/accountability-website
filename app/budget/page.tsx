@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddItemDialog } from "@/components/ui/add-item-dialog";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { budgetTransactions } from "@/lib/content";
 import { formatMoney } from "@/lib/utils";
 import { useAuth } from "@/components/auth-provider";
@@ -16,7 +17,14 @@ import { useWorkspacePages } from "@/components/workspace-pages-provider";
 import { useLocalStorageJson } from "@/lib/use-local-storage-json";
 
 const storageKey = "our-space-budget";
-const savingsTarget = 180000;
+const targetStorageKey = "our-space-budget-target";
+const defaultSavingsTarget = 180000;
+
+function parseSavingsTarget(value: unknown): number {
+  const target = Number(value);
+  if (!Number.isFinite(target) || target <= 0) throw new Error("Saved savings target must be a positive number.");
+  return target;
+}
 
 type BudgetEntry = {
   id: string;
@@ -76,9 +84,12 @@ export default function BudgetPage() {
   const { pages } = useWorkspacePages();
   const pageDetails = pages.find((page) => page.kind === "budget");
   const [transactions, setTransactions] = useLocalStorageJson(storageKey, initialTransactions, parseTransactions);
+  const [savingsTarget, setSavingsTarget] = useLocalStorageJson(targetStorageKey, defaultSavingsTarget, parseSavingsTarget);
   const [description, setDescription] = useState("");
   const [type, setType] = useState("Deposit");
   const [amount, setAmount] = useState("5000");
+  const [editingTarget, setEditingTarget] = useState(false);
+  const [targetDraft, setTargetDraft] = useState(String(defaultSavingsTarget));
   const [addTransactionOpen, setAddTransactionOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState({ description: "", type: "Deposit", amount: "" });
@@ -137,6 +148,14 @@ export default function BudgetPage() {
     setEditingId(null);
   };
 
+  const handleSaveTarget = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const nextTarget = Number(targetDraft);
+    if (!Number.isFinite(nextTarget) || nextTarget <= 0) return;
+    setSavingsTarget(nextTarget);
+    setEditingTarget(false);
+  };
+
   return (
     <div className="space-y-6 pb-24 lg:pb-8">
       <section className="flex flex-col gap-5 rounded-[28px] border border-[#E7E0D2] bg-[linear-gradient(135deg,#FAF7F2_0%,#E7E0D2_100%)] p-6 shadow-sm md:flex-row md:items-center md:justify-between">
@@ -189,7 +208,23 @@ export default function BudgetPage() {
             <CardTitle>Target</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold text-[#313B32]">{formatMoney(savingsTarget)}</p>
+            {editingTarget ? (
+              <form className="space-y-2" onSubmit={handleSaveTarget}>
+                <input type="number" min="0.01" step="0.01" value={targetDraft} onChange={(event) => setTargetDraft(event.target.value)} aria-label="Wedding savings target amount" required className="w-full rounded-xl border border-[#E7E0D2] bg-white px-3 py-2 text-sm text-[#313B32]" />
+                <div className="flex gap-2">
+                  <Button type="submit" size="sm">Save</Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setEditingTarget(false)}>Cancel</Button>
+                </div>
+              </form>
+            ) : (
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-2xl font-semibold text-[#313B32]">{formatMoney(savingsTarget)}</p>
+                <Button type="button" size="icon" variant="ghost" aria-label="Edit wedding savings target" onClick={() => {
+                  setTargetDraft(String(savingsTarget));
+                  setEditingTarget(true);
+                }}><Pencil className="h-4 w-4" /></Button>
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -271,10 +306,10 @@ export default function BudgetPage() {
                         setEditingId(entry.id);
                         setEditDraft({ description: entry.description, type: entry.type, amount: String(entry.amount) });
                       }}><Pencil className="h-4 w-4" /></Button>
-                      <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${entry.description}`} onClick={() => {
+                      <ConfirmDeleteButton itemName={entry.description} ariaLabel={`Delete ${entry.description}`} onConfirm={() => {
                         if (!canManageContent(entry.createdBy, user?.name)) return;
                         setTransactions((current) => current.filter((item) => item.id !== entry.id));
-                      }}><Trash2 className="h-4 w-4" /></Button>
+                      }} />
                     </div> : <p className="mt-2 text-xs text-[#71866E]">Added by {entry.createdBy}. Only they can edit or delete it.</p>}
                   </>
                 )}

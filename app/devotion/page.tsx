@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { BookOpenText, Pencil, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
+import { BookOpenText, Pencil, ShieldCheck, Sparkles } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddItemDialog } from "@/components/ui/add-item-dialog";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { devotionEntries } from "@/lib/content";
 import { useAuth } from "@/components/auth-provider";
 import { canManageContent, getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
@@ -177,10 +178,10 @@ export default function DevotionPage() {
                         setEditingEntryId(entry.id);
                         setEntryEdit({ ...entry });
                       }}><Pencil className="h-4 w-4" /></Button>
-                      <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${entry.title}`} onClick={() => {
+                      <ConfirmDeleteButton itemName={entry.title} ariaLabel={`Delete ${entry.title}`} onConfirm={() => {
                         if (!canManageContent(entry.owner, user?.name)) return;
                         setEntries((current) => current.filter((item) => item.id !== entry.id));
-                      }}><Trash2 className="h-4 w-4" /></Button>
+                      }} />
                     </div>
                   )}
                 </div>

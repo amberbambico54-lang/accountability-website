@@ -2,12 +2,13 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { CalendarHeart, Camera, Gift, Pencil, Trash2 } from "lucide-react";
+import { CalendarHeart, Camera, Gift, Pencil } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddItemDialog } from "@/components/ui/add-item-dialog";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { Progress } from "@/components/ui/progress";
 import { weddingMoodBoard, weddingProjects, wishListItems } from "@/lib/content";
 import { useAuth } from "@/components/auth-provider";
@@ -495,9 +496,7 @@ export default function WeddingPage() {
                         <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${project.title}`} onClick={() => handleStartProjectEdit(project)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${project.title}`} onClick={() => handleDeleteProject(project.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <ConfirmDeleteButton itemName={project.title} ariaLabel={`Delete ${project.title}`} onConfirm={() => handleDeleteProject(project.id)} />
                       </div>
                     )}
                   </div>
@@ -538,9 +537,7 @@ export default function WeddingPage() {
                                   <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${task.text}`} onClick={() => handleStartTaskEdit(project.id, task)}>
                                     <Pencil className="h-4 w-4" />
                                   </Button>
-                                  <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${task.text}`} onClick={() => handleDeleteTask(project.id, task.id)}>
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  <ConfirmDeleteButton itemName={task.text} ariaLabel={`Delete ${task.text}`} onConfirm={() => handleDeleteTask(project.id, task.id)} />
                                 </div>}
                               </>
                             )}
@@ -648,9 +645,7 @@ export default function WeddingPage() {
                             <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${item.title}`} onClick={() => handleStartMoodEdit(item)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${item.title}`} onClick={() => handleDeleteMood(item.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <ConfirmDeleteButton itemName={item.title} ariaLabel={`Delete ${item.title}`} onConfirm={() => handleDeleteMood(item.id)} />
                           </div>
                         )}
                       </div>
@@ -708,10 +703,10 @@ export default function WeddingPage() {
                             setEditingWishId(item.id);
                             setWishEdit({ name: item.name, cost: String(item.cost || ""), priority: item.priority, status: item.status });
                           }}><Pencil className="h-4 w-4" /></Button>
-                          <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${item.name}`} onClick={() => {
+                          <ConfirmDeleteButton itemName={item.name} ariaLabel={`Delete ${item.name}`} onConfirm={() => {
                             if (!canManageContent(item.createdBy, user?.name)) return;
                             setWishList((current) => current.filter((wish) => wish.id !== item.id));
-                          }}><Trash2 className="h-4 w-4" /></Button>
+                          }} />
                         </div>
                       )}
                     </div>

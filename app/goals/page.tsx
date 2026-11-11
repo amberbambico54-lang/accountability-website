@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Goal, Pencil, Trash2, Trophy } from "lucide-react";
+import { Goal, Pencil, Trophy } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddItemDialog } from "@/components/ui/add-item-dialog";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { Progress } from "@/components/ui/progress";
 import { annualGoals } from "@/lib/content";
 import { useAuth } from "@/components/auth-provider";
@@ -446,9 +447,7 @@ export default function GoalsPage() {
                       <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${goal.title}`} onClick={() => handleStartGoalEdit(goal)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${goal.title}`} onClick={() => handleDeleteGoal(goal.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <ConfirmDeleteButton itemName={goal.title} ariaLabel={`Delete ${goal.title}`} onConfirm={() => handleDeleteGoal(goal.id)} />
                     </div>
                   )}
                 </div>
@@ -491,9 +490,7 @@ export default function GoalsPage() {
                               <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${checklist.title}`} onClick={() => handleStartChecklistEdit(checklist)}>
                                 <Pencil className="h-4 w-4" />
                               </Button>
-                              <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${checklist.title}`} onClick={() => handleDeleteChecklist(goal.id, checklist.id)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              <ConfirmDeleteButton itemName={checklist.title} ariaLabel={`Delete ${checklist.title}`} onConfirm={() => handleDeleteChecklist(goal.id, checklist.id)} />
                             </div>}
                           </>
                         )}
@@ -530,9 +527,7 @@ export default function GoalsPage() {
                                     <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${task.text}`} onClick={() => handleStartTaskEdit(task)}>
                                       <Pencil className="h-4 w-4" />
                                     </Button>
-                                    <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${task.text}`} onClick={() => handleDeleteTask(goal.id, checklist.id, task.id)}>
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    <ConfirmDeleteButton itemName={task.text} ariaLabel={`Delete ${task.text}`} onConfirm={() => handleDeleteTask(goal.id, checklist.id, task.id)} />
                                   </div>}
                                 </>
                               )}

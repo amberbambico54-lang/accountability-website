@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { BriefcaseBusiness, CheckCircle2, Lightbulb, Pencil, Trash2 } from "lucide-react";
+import { BriefcaseBusiness, CheckCircle2, Lightbulb, Pencil } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddItemDialog } from "@/components/ui/add-item-dialog";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { Progress } from "@/components/ui/progress";
 import { businessProjects } from "@/lib/content";
 import { useAuth } from "@/components/auth-provider";
@@ -194,7 +195,6 @@ export default function BusinessPage() {
 
   const handleDeleteIdea = (idea: BusinessIdea) => {
     if (!canManageContent(idea.createdBy, user?.name)) return;
-    if (!window.confirm(`Delete "${idea.title}"? This cannot be undone.`)) return;
     setIdeas((current) => current.filter((item) => item.id !== idea.id));
     if (editingIdeaId === idea.id) setEditingIdeaId(null);
   };
@@ -307,9 +307,7 @@ export default function BusinessPage() {
                     <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${idea.title}`} onClick={() => handleStartEditing(idea)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${idea.title}`} onClick={() => handleDeleteIdea(idea)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <ConfirmDeleteButton itemName={idea.title} ariaLabel={`Delete ${idea.title}`} onConfirm={() => handleDeleteIdea(idea)} />
                   </div>
                 )}
               </div>
@@ -358,9 +356,7 @@ export default function BusinessPage() {
                         <span className={task.done ? "min-w-0 flex-1 text-[#71866E] line-through" : "min-w-0 flex-1 text-[#313B32]"}>{task.text}</span>
                         <Badge className={getAuthorBadgeClass(task.createdBy)}>{task.createdBy}</Badge>
                         {canManageIdea && (
-                          <Button type="button" size="icon" variant="ghost" aria-label={`Delete task ${task.text}`} onClick={() => handleDeleteTask(idea.id, task.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <ConfirmDeleteButton itemName={task.text} ariaLabel={`Delete task ${task.text}`} onConfirm={() => handleDeleteTask(idea.id, task.id)} />
                         )}
                       </li>
                     ))}

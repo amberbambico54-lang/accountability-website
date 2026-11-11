@@ -12,7 +12,7 @@ import { hasSupabaseConfig, supabase } from "@/lib/supabase";
 export default function LoginPage() {
   const router = useRouter();
   const { user, error: sessionError, signInDemo } = useAuth();
-  const [email, setEmail] = useState("amberbambico.54@gmail.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -90,6 +90,7 @@ export default function LoginPage() {
                     type="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
+                    placeholder="name@example.com"
                     className="w-full rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] px-3 py-2 text-[#313B32] outline-none focus:ring-2 focus:ring-[#A4B49B]"
                   />
                 </div>

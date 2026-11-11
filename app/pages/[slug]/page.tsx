@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { FileText, Pencil, Plus, Trash2 } from "lucide-react";
+import { FileText, Pencil, Plus } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddItemDialog } from "@/components/ui/add-item-dialog";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { Progress } from "@/components/ui/progress";
 import { useWorkspacePages } from "@/components/workspace-pages-provider";
 import { canManageContent, getAuthorBadgeClass, getAuthorCardClass } from "@/lib/identity";
@@ -246,9 +247,7 @@ function CustomWorkspacePageEditor({ page }: { page: { id: string; title: string
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${topic.title}`} onClick={() => handleDeleteTopic(topic.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <ConfirmDeleteButton itemName={topic.title} ariaLabel={`Delete ${topic.title}`} onConfirm={() => handleDeleteTopic(topic.id)} />
                     </div>
                   )}
                   <Badge>{progress}%</Badge>
@@ -274,9 +273,7 @@ function CustomWorkspacePageEditor({ page }: { page: { id: string; title: string
                             <span className={task.done ? "min-w-0 flex-1 basis-[calc(100%-2rem)] text-[#71866E] line-through" : "min-w-0 flex-1 basis-[calc(100%-2rem)] text-[#313B32]"}>{task.text}</span>
                             <Badge className={`shrink-0 ${getAuthorBadgeClass(task.createdBy)}`}>{task.createdBy}</Badge>
                             {canManageTopic && (
-                              <Button type="button" size="icon" variant="ghost" aria-label={`Delete task ${task.text}`} onClick={() => handleDeleteTask(topic.id, task.id)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              <ConfirmDeleteButton itemName={task.text} ariaLabel={`Delete task ${task.text}`} onConfirm={() => handleDeleteTask(topic.id, task.id)} />
                             )}
                           </li>
                         ))}

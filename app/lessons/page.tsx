@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { BookOpenCheck, CheckCircle2, Clock3, Pencil, Trash2 } from "lucide-react";
+import { BookOpenCheck, CheckCircle2, Clock3, Pencil } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddItemDialog } from "@/components/ui/add-item-dialog";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { Progress } from "@/components/ui/progress";
 import { lessonTracks } from "@/lib/content";
 import { useAuth } from "@/components/auth-provider";
@@ -303,9 +304,7 @@ export default function LessonsPage() {
                       <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${track.title}`} onClick={() => handleStartTrackEdit(track)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${track.title}`} onClick={() => handleDeleteTrack(track.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <ConfirmDeleteButton itemName={track.title} ariaLabel={`Delete ${track.title}`} onConfirm={() => handleDeleteTrack(track.id)} />
                     </div>
                   ) : null}
                 </div>
@@ -339,9 +338,7 @@ export default function LessonsPage() {
                           <span className={task.done ? "min-w-0 flex-1 text-[#71866E] line-through" : "min-w-0 flex-1 text-[#313B32]"}>{task.text}</span>
                           <Badge className={getAuthorBadgeClass(task.createdBy)}>{task.createdBy}</Badge>
                           {canManageTrack && (
-                            <Button type="button" size="icon" variant="ghost" aria-label={`Delete task ${task.text}`} onClick={() => handleDeleteTask(track.id, task.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <ConfirmDeleteButton itemName={task.text} ariaLabel={`Delete task ${task.text}`} onConfirm={() => handleDeleteTask(track.id, task.id)} />
                           )}
                         </li>
                       ))}

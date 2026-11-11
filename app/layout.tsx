@@ -5,6 +5,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { AuthProvider } from "@/components/auth-provider";
 import { WorkspacePagesProvider } from "@/components/workspace-pages-provider";
+import { IdentityColorProvider } from "@/components/identity-color-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,11 +31,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     >
       <body className="min-h-full bg-[#F7F4ED] text-[#313B32]">
         <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm text-[#71866E]">Loading Our Space…</div>}>
-          <AuthProvider>
-            <WorkspacePagesProvider>
-              <AppShell>{children}</AppShell>
-            </WorkspacePagesProvider>
-          </AuthProvider>
+          <IdentityColorProvider>
+            <AuthProvider>
+              <WorkspacePagesProvider>
+                <AppShell>{children}</AppShell>
+              </WorkspacePagesProvider>
+            </AuthProvider>
+          </IdentityColorProvider>
         </Suspense>
       </body>
     </html>

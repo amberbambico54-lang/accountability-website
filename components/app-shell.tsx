@@ -251,8 +251,8 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             )}
             <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[#5C685F]" aria-label="Topic author color key">
               <span className="font-medium">Topic colors:</span>
-              <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-sm border-l-4 border-[#5F8F6B] bg-[#EFF6F0]" /> Fernan</span>
-              <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-sm border-l-4 border-[#8B6AA8] bg-[#F5EFFA]" /> Alpha</span>
+              <span className="inline-flex items-center gap-2"><span className="author-swatch--fernan h-3 w-3 rounded-sm" /> Fernan</span>
+              <span className="inline-flex items-center gap-2"><span className="author-swatch--alpha h-3 w-3 rounded-sm" /> Alpha</span>
             </div>
             {children}
           </main>

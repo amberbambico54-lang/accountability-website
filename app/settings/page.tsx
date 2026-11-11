@@ -2,21 +2,24 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { KeyRound, Pencil, ShieldCheck, SlidersHorizontal, Trash2 } from "lucide-react";
+import { KeyRound, Pencil, ShieldCheck, SlidersHorizontal } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddItemDialog } from "@/components/ui/add-item-dialog";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { useAuth } from "@/components/auth-provider";
 import { defaultSettings } from "@/lib/content";
 import { hasSupabaseConfig, supabase } from "@/lib/supabase";
 import { useWorkspacePages, type WorkspacePage } from "@/components/workspace-pages-provider";
+import { useIdentityColors } from "@/components/identity-color-provider";
 
 export default function SettingsPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { pages, addPage, updatePage, deletePage } = useWorkspacePages();
+  const { preferences, setPreference, resetPreferences } = useIdentityColors();
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [addPageOpen, setAddPageOpen] = useState(false);
@@ -111,8 +114,6 @@ export default function SettingsPage() {
   };
 
   const handleDeletePage = (page: WorkspacePage) => {
-    const confirmed = window.confirm(`Remove "${page.title}" from your pages? Its saved module data will remain in this browser.`);
-    if (!confirmed) return;
     deletePage(page.id);
     if (editingId === page.id) setEditingId(null);
     if (page.kind === "custom" && window.location.pathname === `/pages/${page.slug}`) {
@@ -223,6 +224,19 @@ export default function SettingsPage() {
             <CardTitle className="flex items-center gap-2"><SlidersHorizontal className="h-4 w-4" /> Workspace preferences</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <div className="space-y-3 rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] p-3">
+              <p className="text-sm font-medium text-[#313B32]">Identity colors</p>
+              <label className="flex items-center justify-between gap-3 text-sm text-[#4E5A52]">
+                Fernan&apos;s identity color
+                <input type="color" value={preferences.fernanIdentity} onChange={(event) => setPreference("fernanIdentity", event.target.value)} aria-label="Fernan identity color" className="h-9 w-12 cursor-pointer rounded border border-[#E7E0D2] bg-white p-1" />
+              </label>
+              <label className="flex items-center justify-between gap-3 text-sm text-[#4E5A52]">
+                Alpha&apos;s identity color
+                <input type="color" value={preferences.alphaIdentity} onChange={(event) => setPreference("alphaIdentity", event.target.value)} aria-label="Alpha identity color" className="h-9 w-12 cursor-pointer rounded border border-[#E7E0D2] bg-white p-1" />
+              </label>
+              <Button type="button" size="sm" variant="ghost" onClick={resetPreferences}>Reset colors</Button>
+              <p className="text-xs text-[#71866E]">Identity colors update topic and item cards, author badges, and the color key. Preferences are saved in this browser.</p>
+            </div>
             <div className="rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] p-3 text-sm text-[#4E5A52]">Choose shared or private visibility for each reflection; private entries are only hidden in this interface.</div>
             <div className="rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] p-3 text-sm text-[#4E5A52]">Notifications and milestone reminders are not enabled in this prototype.</div>
             <div className="rounded-2xl border border-[#E7E0D2] bg-[#FAF7F2] p-3 text-sm text-[#4E5A52]">Demo profiles use the same local browser storage and are not suitable for sensitive data.</div>
@@ -277,9 +291,13 @@ export default function SettingsPage() {
                     <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${page.title}`} onClick={() => handleStartEdit(page)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${page.title}`} onClick={() => handleDeletePage(page)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <ConfirmDeleteButton
+                      itemName={page.title}
+                      ariaLabel={`Remove ${page.title}`}
+                      description={`Remove "${page.title}" from your pages? Its saved module data will remain in this browser.`}
+                      confirmLabel="Remove"
+                      onConfirm={() => handleDeletePage(page)}
+                    />
                   </div>
                 )}
               </CardHeader>

@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { HeartHandshake, Pencil, Trash2 } from "lucide-react";
+import { HeartHandshake, Pencil } from "lucide-react";
 
 import { useAuth } from "@/components/auth-provider";
 import { useWorkspacePages } from "@/components/workspace-pages-provider";
 import { AddItemDialog } from "@/components/ui/add-item-dialog";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -118,7 +119,7 @@ export default function MarriagePage() {
               <CardTitle className="min-w-0 break-words"><HeartHandshake className="h-4 w-4 shrink-0" />{section.title}</CardTitle>
               {canManageSection && <div className="flex shrink-0 self-end">
                 <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${section.title}`} onClick={() => handleStartEdit(section)}><Pencil className="h-4 w-4" /></Button>
-                <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${section.title}`} onClick={() => handleDelete(section.id)}><Trash2 className="h-4 w-4" /></Button>
+                <ConfirmDeleteButton itemName={section.title} ariaLabel={`Delete ${section.title}`} onConfirm={() => handleDelete(section.id)} />
               </div>}
             </CardHeader>
             <CardContent>
